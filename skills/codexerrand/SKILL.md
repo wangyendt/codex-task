@@ -7,6 +7,16 @@ description: Delegate a focused task to CodexErrand and return structured text, 
 
 Use the installed `codexerrand` CLI as a companion tool. This skill teaches the calling Agent how to invoke the CLI; it is not injected into the Codex worker.
 
+## Resolve the CLI
+
+The skill and the executable are separate. Installing this skill does not install the npm package.
+
+1. Prefer `codexerrand` when `command -v codexerrand` succeeds.
+2. Otherwise, when npm and network access are available, use `npx --yes codexerrand@latest` in place of `codexerrand` in every command below.
+3. If neither is available, tell the user to install the unscoped package with `npm install -g codexerrand`.
+
+Do not silently perform a global npm installation. The package name is `codexerrand`, not `@wang121ye/codexerrand`.
+
 ## Choose the command
 
 - Need only a text result: run `codexerrand text --backend direct`.
