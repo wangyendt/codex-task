@@ -1,0 +1,59 @@
+name: Publish npm
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - package.json
+      - package-lock.json
+      - .codex-plugin/plugin.json
+  workflow_dispatch:
+
+concurrency:
+  group: codexerrand-publish
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  publish:
+    if: ${{ vars.AUTO_PUBLISH_NPM == 'true' && (github.event_name == 'workflow_dispatch' || startsWith(github.event.head_commit.message || '', 'chore(release): v')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GH_PAT || github.token }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+          cache: npm
+
+      - run: npm ci
+      - run: npm run verify
+
+      - name: Ensure version is unpublished
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "codexerrand@${version}" version >/dev/null 2>&1; then
+            echo "codexerrand@${version} already exists; refusing to retag another commit."
+            exit 1
+          fi
+
+      - run: npm publish --access public --provenance
+
+      - name: Create release tag
+        env:
+          GIT_AUTHOR_NAME: github-actions[bot]
+          GIT_AUTHOR_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: |
+          version=$(node -p "require('./package.json').version")
+          tag="v${version}"
+          git tag -a "$tag" -m "$tag"
+          git push origin "$tag"

@@ -1,0 +1,88 @@
+{
+  "name": "codexerrand",
+  "version": "0.1.0",
+  "description": "Unofficial agent-to-agent text, image, and workspace task runner for Codex",
+  "type": "module",
+  "author": "wang121ye",
+  "license": "MIT",
+  "homepage": "https://github.com/wangyendt/codexerrand#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wangyendt/codexerrand.git"
+  },
+  "bugs": {
+    "url": "https://github.com/wangyendt/codexerrand/issues"
+  },
+  "keywords": [
+    "agent",
+    "codex",
+    "cli",
+    "image-generation",
+    "task-runner",
+    "typescript"
+  ],
+  "bin": {
+    "codexerrand": "dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "import": "./dist/types.js"
+    },
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "import": "./dist/config.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "skills",
+    ".codex-plugin",
+    "README.md",
+    "README.zh-CN.md",
+    "LICENSE",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node scripts/clean.mjs",
+    "dev": "tsx src/cli.ts",
+    "lint": "eslint src test scripts",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "test:e2e": "node --import tsx --test test/e2e/*.e2e.test.ts",
+    "pack:check": "node scripts/pack-check.mjs",
+    "smoke:install": "node scripts/install-smoke.mjs",
+    "verify": "npm run lint && npm run typecheck && npm test && npm run build && npm run pack:check && npm run smoke:install",
+    "prepublishOnly": "npm run verify"
+  },
+  "dependencies": {
+    "@openai/codex-sdk": "0.147.0",
+    "commander": "^14.0.2"
+  },
+  "optionalDependencies": {
+    "@ossiana/node-libcurl": "1.9.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/node": "^20.19.43",
+    "eslint": "^9.39.5",
+    "tsx": "^4.23.12",
+    "typescript": "^5.9.3",
+    "typescript-eslint": "^8.66.0"
+  }
+}
