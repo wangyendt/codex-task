@@ -1,6 +1,6 @@
 {
   "name": "codexerrand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Delegate focused text, image, and workspace tasks to CodexErrand",
   "author": {
     "name": "wang121ye",
@@ -9,7 +9,12 @@
   "homepage": "https://github.com/wangyendt/codexerrand",
   "repository": "https://github.com/wangyendt/codexerrand",
   "license": "MIT",
-  "keywords": ["agent", "codex", "images", "tasks"],
+  "keywords": [
+    "agent",
+    "codex",
+    "images",
+    "tasks"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "CodexErrand",
@@ -17,7 +22,10 @@
     "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexErrand CLI.",
     "developerName": "wang121ye",
     "category": "Developer Tools",
-    "capabilities": ["Interactive", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
     "websiteURL": "https://github.com/wangyendt/codexerrand",
     "defaultPrompt": [
       "Delegate this focused task with CodexErrand.",

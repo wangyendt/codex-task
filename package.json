@@ -1,6 +1,6 @@
 {
   "name": "codexerrand",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Unofficial agent-to-agent text, image, and workspace task runner for Codex",
   "type": "module",
   "author": "wang121ye",
