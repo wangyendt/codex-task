@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import process from "node:process";
 import { dirname, join } from "node:path";
@@ -20,6 +20,13 @@ try {
   const module = await import(pathToFileURL(join(installed, "dist", "index.js")).href);
   if (typeof module.generateText !== "function") throw new Error("generateText export is unavailable");
   execFileSync(process.execPath, [join(installed, "dist", "cli.js"), "--help"], { stdio: "ignore" });
+  const installedManifest = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"));
+  const cliVersion = execFileSync(process.execPath, [join(installed, "dist", "cli.js"), "--version"], {
+    encoding: "utf8",
+  }).trim();
+  if (cliVersion !== installedManifest.version) {
+    throw new Error(`CLI version ${cliVersion} does not match package version ${installedManifest.version}`);
+  }
   process.stdout.write(`${JSON.stringify({ ok: true })}\n`);
 } finally {
   rmSync(temp, { recursive: true, force: true });

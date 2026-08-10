@@ -19,6 +19,10 @@ interface PromptFlags {
   promptFile?: string;
 }
 
+interface PackageManifest {
+  version: string;
+}
+
 interface CommonFlags extends PromptFlags {
   backend: Backend;
   model?: string;
@@ -34,6 +38,16 @@ interface CommonFlags extends PromptFlags {
 
 function collect(value: string, previous: string[]): string[] {
   return [...previous, value];
+}
+
+function packageVersion(): string {
+  const manifest = JSON.parse(
+    readFileSync(new URL("../package.json", import.meta.url), "utf8"),
+  ) as Partial<PackageManifest>;
+  if (typeof manifest.version !== "string" || manifest.version.length === 0) {
+    throw new Error("package.json does not contain a valid version");
+  }
+  return manifest.version;
 }
 
 async function readStdin(): Promise<string> {
@@ -159,7 +173,7 @@ const program = new Command();
 program
   .name("codexerrand")
   .description("Unofficial agent-to-agent text, image, and workspace task runner for Codex")
-  .version("0.1.0");
+  .version(packageVersion());
 
 addCommonOptions(program.command("text [prompt]").description("generate a focused text result"), "direct").action(
   async (prompt: string | undefined, flags: CommonFlags) => {
