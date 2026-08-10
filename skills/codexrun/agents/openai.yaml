@@ -1,0 +1,4 @@
+interface:
+  display_name: "CodexRun"
+  short_description: "Delegate text, image, and Codex workspace tasks"
+  default_prompt: "Use $codexrun to delegate this task to a focused Codex worker."

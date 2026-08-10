@@ -1,4 +1,4 @@
-export class CodexErrandError extends Error {
+export class CodexRunError extends Error {
   readonly code: string;
   readonly retryable: boolean;
   readonly exitCode: number;
@@ -10,7 +10,7 @@ export class CodexErrandError extends Error {
     options: { retryable?: boolean; exitCode?: number; details?: unknown; cause?: unknown } = {},
   ) {
     super(message, { cause: options.cause });
-    this.name = "CodexErrandError";
+    this.name = "CodexRunError";
     this.code = code;
     this.retryable = options.retryable ?? false;
     this.exitCode = options.exitCode ?? 1;
@@ -18,21 +18,21 @@ export class CodexErrandError extends Error {
   }
 }
 
-export function usageError(message: string, details?: unknown): CodexErrandError {
-  return new CodexErrandError("USAGE_ERROR", message, { exitCode: 2, details });
+export function usageError(message: string, details?: unknown): CodexRunError {
+  return new CodexRunError("USAGE_ERROR", message, { exitCode: 2, details });
 }
 
-export function asCodexErrandError(error: unknown): CodexErrandError {
-  if (error instanceof CodexErrandError) return error;
+export function asCodexRunError(error: unknown): CodexRunError {
+  if (error instanceof CodexRunError) return error;
   if (error instanceof Error) {
-    return new CodexErrandError("UNEXPECTED_ERROR", error.message, { cause: error });
+    return new CodexRunError("UNEXPECTED_ERROR", error.message, { cause: error });
   }
-  return new CodexErrandError("UNEXPECTED_ERROR", String(error));
+  return new CodexRunError("UNEXPECTED_ERROR", String(error));
 }
 
 export function isAbortError(error: unknown): boolean {
   return (
     (error instanceof Error && error.name === "AbortError") ||
-    (error instanceof CodexErrandError && (error.code === "CANCELLED" || error.code === "TIMEOUT"))
+    (error instanceof CodexRunError && (error.code === "CANCELLED" || error.code === "TIMEOUT"))
   );
 }

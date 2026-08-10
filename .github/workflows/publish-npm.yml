@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: codexerrand-publish
+  group: codexrun-publish
   cancel-in-progress: false
 
 permissions:
@@ -40,8 +40,8 @@ jobs:
       - name: Ensure version is unpublished
         run: |
           version=$(node -p "require('./package.json').version")
-          if npm view "codexerrand@${version}" version >/dev/null 2>&1; then
-            echo "codexerrand@${version} already exists; refusing to retag another commit."
+          if npm view "codexrun@${version}" version >/dev/null 2>&1; then
+            echo "codexrun@${version} already exists; refusing to retag another commit."
             exit 1
           fi
 

@@ -1,4 +1,0 @@
-interface:
-  display_name: "CodexErrand"
-  short_description: "Delegate text, image, and Codex workspace tasks"
-  default_prompt: "Use $codexerrand to delegate this task to a focused Codex worker."

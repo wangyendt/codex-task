@@ -6,7 +6,7 @@ import {
   type ThreadOptions,
 } from "@openai/codex-sdk";
 import { resolve } from "node:path";
-import { CodexErrandError, usageError } from "../errors.js";
+import { CodexRunError, usageError } from "../errors.js";
 import type {
   Artifact,
   CommandSummary,
@@ -143,16 +143,16 @@ function parseStructuredResponse(text: string, noFollowup: boolean): StructuredW
   try {
     parsed = JSON.parse(text) as StructuredWorkspaceResponse;
   } catch (error) {
-    throw new CodexErrandError("SDK_INVALID_RESPONSE", "Codex SDK returned invalid structured output", {
+    throw new CodexRunError("SDK_INVALID_RESPONSE", "Codex SDK returned invalid structured output", {
       details: text.slice(0, 1000),
       cause: error,
     });
   }
   if (!parsed || !["completed", "needs_input", "failed"].includes(parsed.status)) {
-    throw new CodexErrandError("SDK_INVALID_RESPONSE", "Codex SDK returned an invalid task status");
+    throw new CodexRunError("SDK_INVALID_RESPONSE", "Codex SDK returned an invalid task status");
   }
   if (noFollowup && parsed.status === "needs_input") {
-    throw new CodexErrandError("FOLLOWUP_FORBIDDEN", "Codex requested input while --no-followup was enabled");
+    throw new CodexRunError("FOLLOWUP_FORBIDDEN", "Codex requested input while --no-followup was enabled");
   }
   return parsed;
 }
@@ -185,15 +185,15 @@ export async function runSdkTurn(options: RunSdkTurnOptions): Promise<SdkExecuti
           outputTokens: event.usage.output_tokens,
         };
       } else if (event.type === "turn.failed") {
-        throw new CodexErrandError("SDK_TURN_FAILED", event.error.message);
+        throw new CodexRunError("SDK_TURN_FAILED", event.error.message);
       } else if (event.type === "error") {
-        throw new CodexErrandError("SDK_EVENT_ERROR", event.message);
+        throw new CodexRunError("SDK_EVENT_ERROR", event.message);
       }
     }
   } catch (error) {
     if (controlled.signal.aborted) {
       const timedOut = !options.signal?.aborted;
-      throw new CodexErrandError(timedOut ? "TIMEOUT" : "CANCELLED", timedOut ? "SDK task timed out" : "SDK task cancelled", {
+      throw new CodexRunError(timedOut ? "TIMEOUT" : "CANCELLED", timedOut ? "SDK task timed out" : "SDK task cancelled", {
         exitCode: 130,
         cause: error,
       });
@@ -204,7 +204,7 @@ export async function runSdkTurn(options: RunSdkTurnOptions): Promise<SdkExecuti
   }
 
   const threadId = thread.id;
-  if (!threadId) throw new CodexErrandError("SDK_THREAD_MISSING", "Codex SDK did not return a thread id");
+  if (!threadId) throw new CodexRunError("SDK_THREAD_MISSING", "Codex SDK did not return a thread id");
   const structured =
     options.structuredResponse === false
       ? { status: "completed" as const, text: finalResponse, questions: [], artifacts: [] }

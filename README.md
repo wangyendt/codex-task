@@ -1,10 +1,10 @@
-# CodexErrand
+# CodexRun
 
 > Give another AI agent a focused errand—and get back text, images, or finished work. Powered by your existing Codex setup.
 
-[中文文档](./README.zh-CN.md) · [PRD](./docs/PRD.md) · [Companion skill](./skills/codexerrand/SKILL.md)
+[中文文档](./README.zh-CN.md) · [PRD](./docs/PRD.md) · [Companion skill](./skills/codexrun/SKILL.md)
 
-CodexErrand turns Codex into a small, composable worker for other agents. It ships one CLI, one TypeScript API, and one installable skill for three jobs:
+CodexRun turns Codex into a small, composable worker for other agents. It ships one CLI, one TypeScript API, and one installable skill for three jobs:
 
 - focused text-to-text tasks;
 - text-to-image and image-to-image generation;
@@ -13,28 +13,28 @@ CodexErrand turns Codex into a small, composable worker for other agents. It shi
 No daemon. No hosted service. No extra API key. Results are stable JSON that another agent can consume.
 
 > [!IMPORTANT]
-> CodexErrand is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by OpenAI. Codex and OpenAI are trademarks of OpenAI.
+> CodexRun is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by OpenAI. Codex and OpenAI are trademarks of OpenAI.
 
 ## Quick start
 
 Requirements: Node.js 20+ and an existing Codex login (`codex login`).
 
 ```bash
-npm install -g codexerrand
-codexerrand doctor
+npm install -g codexrun
+codexrun doctor
 ```
 
 Delegate a text result:
 
 ```bash
-codexerrand text "Turn these notes into a crisp release announcement" \
+codexrun text "Turn these notes into a crisp release announcement" \
   --backend direct
 ```
 
 Generate an image that will not be removed by temporary-file cleanup:
 
 ```bash
-codexerrand image "A precise exploded-view diagram of a compact robot joint" \
+codexrun image "A precise exploded-view diagram of a compact robot joint" \
   --backend direct \
   --size 1536x1024 \
   --quality high \
@@ -44,7 +44,7 @@ codexerrand image "A precise exploded-view diagram of a compact robot joint" \
 Edit an image:
 
 ```bash
-codexerrand image "Keep the object; replace the background with a clean workshop" \
+codexrun image "Keep the object; replace the background with a clean workshop" \
   --backend direct \
   --image ./reference.png \
   --output ./artifacts
@@ -53,7 +53,7 @@ codexerrand image "Keep the object; replace the background with a clean workshop
 Delegate repository work:
 
 ```bash
-codexerrand task "Implement the requested feature and run focused tests" \
+codexrun task "Implement the requested feature and run focused tests" \
   --backend sdk \
   --cwd /absolute/path/to/repo
 ```
@@ -74,7 +74,7 @@ Every command writes a machine-readable result:
 
 ## Pick the backend
 
-CodexErrand never guesses. Direct is the CLI default, but workspace tasks require an explicit SDK backend.
+CodexRun never guesses. Direct is the CLI default, but workspace tasks require an explicit SDK backend.
 
 | Capability | `direct` | `sdk` |
 | --- | --- | --- |
@@ -115,26 +115,26 @@ SDK tasks are single-turn first. If the worker needs clarification, the result i
 Ask the user, then resume the same Codex thread:
 
 ```bash
-printf '%s' "Yes, preserve it." | codexerrand resume <task-id>
+printf '%s' "Yes, preserve it." | codexrun resume <task-id>
 ```
 
 Pass `--no-followup` to require reasonable assumptions and a completed/failed result in one caller turn. It does not guarantee the model succeeds.
 
 ## Use from another agent
 
-This repository ships `skills/codexerrand/SKILL.md`. It teaches a calling agent when to choose text, image, task, or resume. It is a companion skill, not a skill injected into the Codex worker.
+This repository ships `skills/codexrun/SKILL.md`. It teaches a calling agent when to choose text, image, task, or resume. It is a companion skill, not a skill injected into the Codex worker.
 
 Install it with [skillmanager](https://github.com/wangyendt/skillmanager):
 
 ```bash
 npm install -g @wang121ye/skillmanager
-skillmanager install https://github.com/wangyendt/codexerrand --global
+skillmanager install https://github.com/wangyendt/codexrun --global
 ```
 
 Or locate the copy included in the npm package:
 
 ```bash
-codexerrand skill path
+codexrun skill path
 ```
 
 The repository also includes `.codex-plugin/plugin.json` for plugin-compatible distribution.
@@ -142,7 +142,7 @@ The repository also includes `.codex-plugin/plugin.json` for plugin-compatible d
 ## TypeScript API
 
 ```ts
-import { generateImage, generateText, runTask } from "codexerrand";
+import { generateImage, generateText, runTask } from "codexrun";
 
 const copy = await generateText({
   prompt: "Write a launch headline and three supporting bullets.",
@@ -166,7 +166,7 @@ const work = await runTask({
 For progress events:
 
 ```ts
-import { streamTaskEvents } from "codexerrand";
+import { streamTaskEvents } from "codexrun";
 
 for await (const event of streamTaskEvents({
   kind: "text",
@@ -196,8 +196,8 @@ Each reference may be at most 20 MiB, with a 50 MiB combined limit. Existing out
 Long prompts can come from a file or stdin:
 
 ```bash
-codexerrand text --prompt-file task.md --backend direct
-printf '%s' "$PROMPT" | codexerrand task --backend sdk --cwd .
+codexrun text --prompt-file task.md --backend direct
+printf '%s' "$PROMPT" | codexrun task --backend sdk --cwd .
 ```
 
 The positional prompt, `--prompt-file`, and stdin are mutually exclusive.
@@ -224,19 +224,21 @@ Direct resolves its model in this order:
 
 It supports classic Responses and Responses Lite encoders. With a current Codex model catalog, text defaults to `gpt-5.6-sol` with `medium` reasoning. The private Responses Lite route rejects hosted `image_generation`, so Direct image requests are preflighted to the compatible classic `gpt-5.5` model before any request is sent. The final JSON always reports `effectiveModel` and `reasoningEffort`.
 
-Configuration precedence is API/CLI → `CODEXERRAND_*` environment variables → user config → Codex config → fallback. The user config is `config.json` under the standard platform config directory; run `codexerrand doctor` to see the exact path.
+Configuration precedence is API/CLI → `CODEXRUN_*` environment variables → user config → Codex config → fallback. The user config is `config.json` under the standard platform config directory; run `codexrun doctor` to see the exact path.
+
+For migration, `CODEXERRAND_*` variables and the former CodexErrand config/task paths are recognized only when their `CODEXRUN_*` or CodexRun equivalents are absent. New state is always written under CodexRun paths.
 
 Useful variables include:
 
 ```text
-CODEXERRAND_MODEL
-CODEXERRAND_REASONING
-CODEXERRAND_PROXY
-CODEXERRAND_CODEX_HOME
-CODEXERRAND_TEXT_TIMEOUT_MS
-CODEXERRAND_IMAGE_TIMEOUT_MS
-CODEXERRAND_SDK_TIMEOUT_MS
-CODEXERRAND_RETRIES
+CODEXRUN_MODEL
+CODEXRUN_REASONING
+CODEXRUN_PROXY
+CODEXRUN_CODEX_HOME
+CODEXRUN_TEXT_TIMEOUT_MS
+CODEXRUN_IMAGE_TIMEOUT_MS
+CODEXRUN_SDK_TIMEOUT_MS
+CODEXRUN_RETRIES
 ```
 
 ## Temporary data
@@ -244,8 +246,8 @@ CODEXERRAND_RETRIES
 - Images without `--output` live under the platform temporary directory and expire after 24 hours.
 - Pending `needs_input` metadata lives under the platform state directory and expires after 7 days.
 - Managed temporary artifacts are capped at 1 GiB.
-- Explicit output paths are user data and are never removed by `codexerrand gc`.
-- Official SDK sessions remain managed by Codex under `$CODEX_HOME`; CodexErrand does not delete them.
+- Explicit output paths are user data and are never removed by `codexrun gc`.
+- Official SDK sessions remain managed by Codex under `$CODEX_HOME`; CodexRun does not delete them.
 
 ## Development and releases
 

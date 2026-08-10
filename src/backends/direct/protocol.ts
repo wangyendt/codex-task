@@ -95,7 +95,7 @@ function textConfig(spec: DirectRequestSpec): Record<string, unknown> {
       ? {
           format: {
             type: "json_schema",
-            name: "codexerrand_result",
+            name: "codexrun_result",
             strict: true,
             schema: spec.outputSchema,
           },

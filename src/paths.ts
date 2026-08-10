@@ -15,8 +15,7 @@ export function defaultCodexHome(): string {
   return process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
 }
 
-export function appPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
-  const override = env["CODEXERRAND_HOME"];
+function namedAppPaths(name: "codexrun" | "codexerrand", override: string | undefined, env: NodeJS.ProcessEnv): AppPaths {
   if (override) {
     const configDir = join(override, "config");
     const stateDir = join(override, "state");
@@ -38,22 +37,22 @@ export function appPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
   let cacheDir: string;
 
   if (platform() === "darwin") {
-    configDir = join(home, "Library", "Application Support", "codexerrand");
+    configDir = join(home, "Library", "Application Support", name);
     stateDir = configDir;
-    cacheDir = join(home, "Library", "Caches", "codexerrand");
+    cacheDir = join(home, "Library", "Caches", name);
   } else if (platform() === "win32") {
     const appData = env["APPDATA"] ?? join(home, "AppData", "Roaming");
     const localAppData = env["LOCALAPPDATA"] ?? join(home, "AppData", "Local");
-    configDir = join(appData, "codexerrand");
-    stateDir = join(localAppData, "codexerrand", "state");
-    cacheDir = join(localAppData, "codexerrand", "cache");
+    configDir = join(appData, name);
+    stateDir = join(localAppData, name, "state");
+    cacheDir = join(localAppData, name, "cache");
   } else {
-    configDir = join(env["XDG_CONFIG_HOME"] ?? join(home, ".config"), "codexerrand");
-    stateDir = join(env["XDG_STATE_HOME"] ?? join(home, ".local", "state"), "codexerrand");
-    cacheDir = join(env["XDG_CACHE_HOME"] ?? join(home, ".cache"), "codexerrand");
+    configDir = join(env["XDG_CONFIG_HOME"] ?? join(home, ".config"), name);
+    stateDir = join(env["XDG_STATE_HOME"] ?? join(home, ".local", "state"), name);
+    cacheDir = join(env["XDG_CACHE_HOME"] ?? join(home, ".cache"), name);
   }
 
-  const tempDir = join(tmpdir(), "codexerrand");
+  const tempDir = join(tmpdir(), name);
   return {
     configDir,
     stateDir,
@@ -63,4 +62,13 @@ export function appPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
     identityPath: join(stateDir, "identity.json"),
     configPath: join(configDir, "config.json"),
   };
+}
+
+export function appPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
+  return namedAppPaths("codexrun", env["CODEXRUN_HOME"], env);
+}
+
+/** Read-only compatibility paths for users migrating from CodexErrand. */
+export function legacyAppPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
+  return namedAppPaths("codexerrand", env["CODEXERRAND_HOME"], env);
 }

@@ -25,7 +25,7 @@ test("validateImageOptions rejects unsafe count and dimensions", () => {
 });
 
 test("validateImageOptions validates reference type and size", () => {
-  const directory = mkdtempSync(join(tmpdir(), "codexerrand-image-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "codexrun-image-test-"));
   try {
     const path = join(directory, "reference.txt");
     writeFileSync(path, "not an image");
@@ -36,7 +36,7 @@ test("validateImageOptions validates reference type and size", () => {
 });
 
 test("writePngArtifact writes atomically and protects existing output", () => {
-  const directory = mkdtempSync(join(tmpdir(), "codexerrand-output-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "codexrun-output-test-"));
   try {
     const output = join(directory, "result.png");
     const artifact = writePngArtifact("00000000-0000-0000-0000-000000000000", Buffer.from("png"), output, 0, 1, false);

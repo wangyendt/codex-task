@@ -1,10 +1,10 @@
 # Release setup
 
-CodexErrand intentionally follows the same push-to-release workflow as `skillmanager`: every non-release push to `main` creates a patch version. The release commit then publishes the package and creates a `vX.Y.Z` tag.
+CodexRun intentionally follows the same push-to-release workflow as `skillmanager`: every non-release push to `main` creates a patch version. The release commit then publishes the package and creates a `vX.Y.Z` tag.
 
 ## GitHub repository settings
 
-1. Create `wangyendt/codexerrand` and push this repository.
+1. Create `wangyendt/codexrun` and push this repository.
 2. Add repository variable `AUTO_PUBLISH_NPM=true` when automatic npm publishing should be active.
 3. Add secret `GH_PAT` with the minimum repository contents permission required to push the generated release commit and tag.
 4. Protect `main` as desired, while allowing the release identity to push the version commit.
@@ -13,11 +13,11 @@ CodexErrand intentionally follows the same push-to-release workflow as `skillman
 
 ## npm Trusted Publishing
 
-Configure npm Trusted Publishing for package `codexerrand`:
+Configure npm Trusted Publishing for package `codexrun`:
 
 ```text
 GitHub owner:    wangyendt
-Repository:      codexerrand
+Repository:      codexrun
 Workflow:        publish-npm.yml
 Environment:     (leave empty unless you add one later)
 ```

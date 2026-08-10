@@ -1,13 +1,13 @@
 {
-  "name": "codexerrand",
-  "version": "0.1.3",
-  "description": "Delegate focused text, image, and workspace tasks to CodexErrand",
+  "name": "codexrun",
+  "version": "0.2.0",
+  "description": "Delegate focused text, image, and workspace tasks to CodexRun",
   "author": {
     "name": "wang121ye",
     "url": "https://github.com/wangyendt"
   },
-  "homepage": "https://github.com/wangyendt/codexerrand",
-  "repository": "https://github.com/wangyendt/codexerrand",
+  "homepage": "https://github.com/wangyendt/codexrun",
+  "repository": "https://github.com/wangyendt/codexrun",
   "license": "MIT",
   "keywords": [
     "agent",
@@ -17,19 +17,19 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "CodexErrand",
+    "displayName": "CodexRun",
     "shortDescription": "Delegate text, image, and workspace tasks",
-    "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexErrand CLI.",
+    "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexRun CLI.",
     "developerName": "wang121ye",
     "category": "Developer Tools",
     "capabilities": [
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/wangyendt/codexerrand",
+    "websiteURL": "https://github.com/wangyendt/codexrun",
     "defaultPrompt": [
-      "Delegate this focused task with CodexErrand.",
-      "Generate this image through CodexErrand.",
+      "Delegate this focused task with CodexRun.",
+      "Generate this image through CodexRun.",
       "Send this workspace task to a Codex worker."
     ]
   }

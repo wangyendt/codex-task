@@ -1,15 +1,15 @@
-# CodexErrand 产品需求文档
+# CodexRun 产品需求文档
 
 ## 1. 产品概述
 
-CodexErrand 是一个轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方 Agent 通过 CLI 或 TypeScript SDK，把一个边界明确的任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更结果。
+CodexRun 是一个轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方 Agent 通过 CLI 或 TypeScript SDK，把一个边界明确的任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更结果。
 
 产品提供两个显式后端：
 
 - **Direct**：复用本机 Codex OAuth，通过 ChatGPT 私有 Codex Responses 接口执行纯文本、文生图和图生图；默认后端，非官方、实验性。
 - **SDK**：通过官方 `@openai/codex-sdk` 启动 Codex CLI，执行需要 shell、文件系统、项目 rules 或本地工具的工作区任务。
 
-CodexErrand 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。
+CodexRun 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。
 
 ## 2. 目标用户与核心场景
 
@@ -41,13 +41,13 @@ CodexErrand 是独立的非官方开源项目，与 OpenAI 不存在隶属、认
 ### 4.1 CLI
 
 ```text
-codexerrand text <prompt> [--backend direct|sdk]
-codexerrand image <prompt> [--backend direct|sdk] [-i <path>...]
-codexerrand task <prompt> --backend sdk [--cwd <path>]
-codexerrand resume <task-id> <answer>
-codexerrand doctor
-codexerrand gc
-codexerrand skill path
+codexrun text <prompt> [--backend direct|sdk]
+codexrun image <prompt> [--backend direct|sdk] [-i <path>...]
+codexrun task <prompt> --backend sdk [--cwd <path>]
+codexrun resume <task-id> <answer>
+codexrun doctor
+codexrun gc
+codexrun skill path
 ```
 
 Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct 是默认后端；`task` 在未显式传 `--backend sdk` 时返回参数错误。
@@ -103,7 +103,7 @@ Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct �
 
 ### 4.7 状态、缓存和诊断
 
-- 默认图片写入 `os.tmpdir()/codexerrand/<task-id>`，24 小时过期。
+- 默认图片写入 `os.tmpdir()/codexrun/<task-id>`，24 小时过期。
 - `needs_input` metadata 写入平台 state 目录，7 天过期。
 - 临时产物总上限 1 GiB，超过后优先删除最旧终态目录。
 - 指定 `--output` 的文件视为用户数据，不自动删除。
@@ -112,10 +112,10 @@ Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct �
 
 ### 4.8 Companion skill
 
-- 标准路径：`skills/codexerrand/SKILL.md`。
+- 标准路径：`skills/codexrun/SKILL.md`。
 - plugin manifest：`.codex-plugin/plugin.json`。
-- 该 skill 只教其他 Agent 调用 CodexErrand CLI，不是 worker skill。
-- npm postinstall 不静默安装；通过 skillmanager 分发，`codexerrand skill path` 返回包内路径。
+- 该 skill 只教其他 Agent 调用 CodexRun CLI，不是 worker skill。
+- npm postinstall 不静默安装；通过 skillmanager 分发，`codexrun skill path` 返回包内路径。
 
 ## 5. 非功能需求
 
@@ -128,7 +128,7 @@ Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct �
 
 ## 6. 发布需求
 
-- 初始版本 `0.1.0`，无 scope npm 包 `codexerrand`。
+- CodexRun 首个版本为 `0.2.0`，使用无 scope npm 包 `codexrun`。
 - main 任意 push 自动 patch 版本并提交 package/lockfile。
 - lint、typecheck、unit test、build、pack check、安装/import smoke test 全部通过后才发布。
 - npm Trusted Publishing/OIDC；成功后创建 `vX.Y.Z` tag。

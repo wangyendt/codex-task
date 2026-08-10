@@ -1,7 +1,7 @@
 import { mkdirSync, openSync, closeSync, unlinkSync, writeFileSync, renameSync, statSync } from "node:fs";
 import { dirname } from "node:path";
 import { randomUUID } from "node:crypto";
-import { CodexErrandError } from "./errors.js";
+import { CodexRunError } from "./errors.js";
 
 export function ensureDir(path: string): void {
   mkdirSync(path, { recursive: true, mode: 0o700 });
@@ -37,7 +37,7 @@ export async function withFileLock<T>(
         // Another process may have released it.
       }
       if (Date.now() - startedAt > timeoutMs) {
-        throw new CodexErrandError("LOCK_TIMEOUT", `Timed out waiting for ${lockPath}`, {
+        throw new CodexRunError("LOCK_TIMEOUT", `Timed out waiting for ${lockPath}`, {
           retryable: true,
         });
       }
