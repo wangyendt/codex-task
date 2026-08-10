@@ -9,5 +9,5 @@ export {
 export { loadConfig, type ResolvedConfig, type UserConfig } from "./config.js";
 export { runDoctor } from "./doctor.js";
 export { runGarbageCollection } from "./state.js";
-export { CodexRunError } from "./errors.js";
+export { CodexTaskError } from "./errors.js";
 export type * from "./types.js";

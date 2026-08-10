@@ -2,7 +2,7 @@ import { existsSync, readFileSync, readdirSync, rmSync, statSync } from "node:fs
 import { join, resolve, sep } from "node:path";
 import { appPaths, legacyAppPaths, type AppPaths } from "./paths.js";
 import { atomicWrite, ensureDir, withFileLock } from "./fs-utils.js";
-import { CodexRunError } from "./errors.js";
+import { CodexTaskError } from "./errors.js";
 import { loadConfig } from "./config.js";
 import type { GcReport, ReasoningEffort, SandboxMode } from "./types.js";
 
@@ -23,7 +23,7 @@ export interface StoredTask {
 
 function taskPath(taskId: string, paths: AppPaths = appPaths()): string {
   if (!/^[0-9a-f-]{36}$/i.test(taskId)) {
-    throw new CodexRunError("INVALID_TASK_ID", `Invalid task id: ${taskId}`, { exitCode: 2 });
+    throw new CodexTaskError("INVALID_TASK_ID", `Invalid task id: ${taskId}`, { exitCode: 2 });
   }
   return join(paths.tasksDir, `${taskId}.json`);
 }
@@ -46,7 +46,7 @@ export function loadPendingTask(taskId: string): StoredTask {
   const legacyPath = taskPath(taskId, legacyAppPaths());
   const path = existsSync(currentPath) ? currentPath : legacyPath;
   if (!existsSync(path)) {
-    throw new CodexRunError("TASK_NOT_FOUND", `No resumable task found for ${taskId}`, {
+    throw new CodexTaskError("TASK_NOT_FOUND", `No resumable task found for ${taskId}`, {
       exitCode: 2,
     });
   }
@@ -54,19 +54,19 @@ export function loadPendingTask(taskId: string): StoredTask {
   try {
     record = JSON.parse(readFileSync(path, "utf8")) as StoredTask;
   } catch (error) {
-    throw new CodexRunError("TASK_STATE_INVALID", `Could not parse task state for ${taskId}`, {
+    throw new CodexTaskError("TASK_STATE_INVALID", `Could not parse task state for ${taskId}`, {
       exitCode: 2,
       cause: error,
     });
   }
   if (record.version !== 1 || record.taskId !== taskId || !record.threadId) {
-    throw new CodexRunError("TASK_STATE_INVALID", `Task state for ${taskId} is invalid`, {
+    throw new CodexTaskError("TASK_STATE_INVALID", `Task state for ${taskId} is invalid`, {
       exitCode: 2,
     });
   }
   if (Date.parse(record.expiresAt) <= Date.now()) {
     deletePendingTask(taskId);
-    throw new CodexRunError("TASK_EXPIRED", `Task ${taskId} has expired`, { exitCode: 2 });
+    throw new CodexTaskError("TASK_EXPIRED", `Task ${taskId} has expired`, { exitCode: 2 });
   }
   return record;
 }
@@ -100,7 +100,7 @@ function isInside(path: string, root: string): boolean {
 
 function removeManagedPath(path: string, root: string): number {
   if (!isInside(path, root) || resolve(path) === resolve(root)) {
-    throw new CodexRunError("GC_PATH_REJECTED", `Refusing to remove unmanaged path: ${path}`);
+    throw new CodexTaskError("GC_PATH_REJECTED", `Refusing to remove unmanaged path: ${path}`);
   }
   const bytes = existsSync(path) ? directorySize(path) : 0;
   rmSync(path, { recursive: true, force: true });

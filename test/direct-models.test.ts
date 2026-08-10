@@ -6,7 +6,7 @@ import test from "node:test";
 import { resolveDirectImageModel, resolveDirectModel } from "../src/backends/direct/models.js";
 
 test("resolveDirectModel follows Codex config and Responses Lite metadata", () => {
-  const codexHome = mkdtempSync(join(tmpdir(), "codexrun-model-test-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "codex-task-model-test-"));
   try {
     mkdirSync(codexHome, { recursive: true });
     writeFileSync(join(codexHome, "config.toml"), 'model = "gpt-5.6-sol"\n');
@@ -35,7 +35,7 @@ test("resolveDirectModel follows Codex config and Responses Lite metadata", () =
 });
 
 test("resolveDirectModel validates reasoning against model catalog", () => {
-  const codexHome = mkdtempSync(join(tmpdir(), "codexrun-model-test-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "codex-task-model-test-"));
   try {
     writeFileSync(
       join(codexHome, "models_cache.json"),
@@ -57,7 +57,7 @@ test("resolveDirectModel validates reasoning against model catalog", () => {
 });
 
 test("resolveDirectImageModel preflights Lite to a classic image model", () => {
-  const codexHome = mkdtempSync(join(tmpdir(), "codexrun-model-test-"));
+  const codexHome = mkdtempSync(join(tmpdir(), "codex-task-model-test-"));
   try {
     writeFileSync(
       join(codexHome, "models_cache.json"),

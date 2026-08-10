@@ -1,10 +1,10 @@
-# CodexRun
+# CodexTask
 
 > 把一个明确的小任务交给另一个 AI Agent，拿回文本、图片或已经完成的工作。直接复用你现有的 Codex 环境。
 
-[English](./README.md) · [产品需求文档](./docs/PRD.md) · [Companion skill](./skills/codexrun/SKILL.md)
+[English](./README.md) · [产品需求文档](./docs/PRD.md) · [Companion skill](./skills/codex-task/SKILL.md)
 
-CodexRun 把 Codex 封装成可供其他 Agent 调用的轻量 worker，统一提供三类能力：
+CodexTask 把 Codex 封装成可供其他 Agent 调用的轻量 worker，统一提供三类能力：
 
 - 文生文；
 - 文生图和图生图；
@@ -13,27 +13,27 @@ CodexRun 把 Codex 封装成可供其他 Agent 调用的轻量 worker，统一�
 没有 daemon，没有托管服务，也不需要额外 API key。所有结果都使用适合 Agent 解析的稳定 JSON。
 
 > [!IMPORTANT]
-> CodexRun 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。Codex 与 OpenAI 为 OpenAI 的商标。
+> CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。Codex 与 OpenAI 为 OpenAI 的商标。
 
 ## 30 秒上手
 
 需要 Node.js 20+，并已执行过 `codex login`。
 
 ```bash
-npm install -g codexrun
-codexrun doctor
+npm install -g codex-task
+codex-task doctor
 ```
 
 生成文本：
 
 ```bash
-codexrun text "把这些笔记整理成简洁的发布公告" --backend direct
+codex-task text "把这些笔记整理成简洁的发布公告" --backend direct
 ```
 
 生成持久图片：
 
 ```bash
-codexrun image "精确、克制的机器人关节爆炸图" \
+codex-task image "精确、克制的机器人关节爆炸图" \
   --backend direct \
   --size 1536x1024 \
   --quality high \
@@ -43,7 +43,7 @@ codexrun image "精确、克制的机器人关节爆炸图" \
 基于参考图编辑：
 
 ```bash
-codexrun image "保留主体，把背景换成整洁的工作室" \
+codex-task image "保留主体，把背景换成整洁的工作室" \
   --backend direct \
   --image ./reference.png \
   --output ./artifacts
@@ -52,14 +52,14 @@ codexrun image "保留主体，把背景换成整洁的工作室" \
 委派仓库任务：
 
 ```bash
-codexrun task "实现这个功能并运行聚焦测试" \
+codex-task task "实现这个功能并运行聚焦测试" \
   --backend sdk \
   --cwd /absolute/path/to/repo
 ```
 
 ## 两种后端
 
-CodexRun 不猜测后端。CLI 默认是 Direct，但工作区任务必须显式写出 SDK。
+CodexTask 不猜测后端。CLI 默认是 Direct，但工作区任务必须显式写出 SDK。
 
 | 能力 | `direct` | `sdk` |
 | --- | --- | --- |
@@ -99,32 +99,32 @@ SDK 默认先执行一个 turn。确实需要澄清时返回：
 向用户确认后恢复同一个 Codex thread：
 
 ```bash
-printf '%s' "是，必须保持。" | codexrun resume <task-id>
+printf '%s' "是，必须保持。" | codex-task resume <task-id>
 ```
 
 `--no-followup` 会要求 Codex 使用合理假设，只能完成或失败；它不保证模型一定成功。
 
 ## 安装给其他 Agent
 
-仓库内置 `skills/codexrun/SKILL.md`。它教调用方 Agent 选择 `text`、`image`、`task` 或 `resume`，并不是注入底层 Codex worker 的 skill。
+仓库内置 `skills/codex-task/SKILL.md`。它教调用方 Agent 选择 `text`、`image`、`task` 或 `resume`，并不是注入底层 Codex worker 的 skill。
 
 使用 [skillmanager](https://github.com/wangyendt/skillmanager) 安装：
 
 ```bash
 npm install -g @wang121ye/skillmanager
-skillmanager install https://github.com/wangyendt/codexrun --global
+skillmanager install https://github.com/wangyendt/codex-task --global
 ```
 
 也可以查看 npm 包内 skill 的位置：
 
 ```bash
-codexrun skill path
+codex-task skill path
 ```
 
 ## TypeScript API
 
 ```ts
-import { generateImage, generateText, runTask } from "codexrun";
+import { generateImage, generateText, runTask } from "codex-task";
 
 const text = await generateText({
   prompt: "写一个标题和三个卖点。",
@@ -167,8 +167,8 @@ concurrency  1–3，默认 1
 长 prompt 推荐使用文件或 stdin：
 
 ```bash
-codexrun text --prompt-file task.md --backend direct
-printf '%s' "$PROMPT" | codexrun task --backend sdk --cwd .
+codex-task text --prompt-file task.md --backend direct
+printf '%s' "$PROMPT" | codex-task task --backend sdk --cwd .
 ```
 
 ## 模型和配置
@@ -177,15 +177,15 @@ SDK 默认不覆写模型和 reasoning，继续按 Codex 正常配置读取。
 
 Direct 按以下顺序选择模型：显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback。它同时实现 classic Responses 和 Responses Lite encoder；当前模型目录下文本默认是 `gpt-5.6-sol + medium`。私有 Responses Lite 路由会拒绝托管 `image_generation`，因此 Direct 图片会在发出请求前选择兼容的 classic `gpt-5.5`。最终 JSON 会返回真实的 `effectiveModel` 和 `reasoningEffort`。
 
-配置优先级为 API/CLI → `CODEXRUN_*` 环境变量 → 用户配置 → Codex 配置 → fallback。运行 `codexrun doctor` 可以查看真实路径和解析结果。迁移期间，仅当新的变量或路径不存在时才兼容读取旧的 `CODEXERRAND_*` 环境变量以及 CodexErrand 配置/待恢复任务；新状态始终写入 CodexRun 路径。
+配置优先级为 API/CLI → `CODEX_TASK_*` 环境变量 → 用户配置 → Codex 配置 → fallback。运行 `codex-task doctor` 可以查看真实路径和解析结果。迁移期间，仅当新的变量或路径不存在时才兼容读取旧的 `CODEXERRAND_*` 环境变量以及 CodexErrand 配置/待恢复任务；新状态始终写入 CodexTask 路径。
 
 ## 临时文件
 
 - 不传 `--output` 的图片放系统临时目录，默认 24 小时过期。
 - `needs_input` 的小型状态放平台 state 目录，默认保存 7 天。
 - 临时产物总上限 1 GiB。
-- 显式 `--output` 下的文件属于用户数据，`codexrun gc` 永远不会删除。
-- 官方 SDK 的 session 仍由 Codex 自己保存在 `$CODEX_HOME`，CodexRun 不删除。
+- 显式 `--output` 下的文件属于用户数据，`codex-task gc` 永远不会删除。
+- 官方 SDK 的 session 仍由 Codex 自己保存在 `$CODEX_HOME`，CodexTask 不删除。
 
 ## 开发和发布
 

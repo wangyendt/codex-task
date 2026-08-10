@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { atomicWrite, withFileLock } from "../../fs-utils.js";
-import { CodexRunError } from "../../errors.js";
+import { CodexTaskError } from "../../errors.js";
 import { ImpersonatedSession } from "./http.js";
 
 interface AuthTokens {
@@ -49,21 +49,21 @@ function extractAccountId(accessToken: string): string | undefined {
 function loadAuthDocument(codexHome: string): Record<string, unknown> {
   const path = authPath(codexHome);
   if (!existsSync(path)) {
-    throw new CodexRunError("AUTH_NOT_FOUND", `No Codex login found at ${path}. Run codex login first.`, {
+    throw new CodexTaskError("AUTH_NOT_FOUND", `No Codex login found at ${path}. Run codex login first.`, {
       exitCode: 2,
     });
   }
   try {
     return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
   } catch (error) {
-    throw new CodexRunError("AUTH_INVALID", `Could not parse ${path}`, { exitCode: 2, cause: error });
+    throw new CodexTaskError("AUTH_INVALID", `Could not parse ${path}`, { exitCode: 2, cause: error });
   }
 }
 
 function tokensFromDocument(document: Record<string, unknown>): AuthTokens {
   const tokens = document["tokens"] as Partial<AuthTokens> | undefined;
   if (!tokens?.access_token) {
-    throw new CodexRunError("AUTH_INVALID", "Codex auth.json has no OAuth access token. Run codex login.", {
+    throw new CodexTaskError("AUTH_INVALID", "Codex auth.json has no OAuth access token. Run codex login.", {
       exitCode: 2,
     });
   }
@@ -84,7 +84,7 @@ async function refreshTokens(refreshToken: string, proxy?: string): Promise<Auth
       JSON.stringify({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: OAUTH_CLIENT_ID }),
     );
     if (response.status < 200 || response.status >= 300) {
-      throw new CodexRunError("AUTH_REFRESH_FAILED", `Codex token refresh failed with HTTP ${response.status}`, {
+      throw new CodexTaskError("AUTH_REFRESH_FAILED", `Codex token refresh failed with HTTP ${response.status}`, {
         details: response.text.slice(0, 300),
       });
     }
@@ -113,13 +113,13 @@ export async function ensureDirectAuth(
     };
   }
   if (!initial.refresh_token) {
-    throw new CodexRunError("AUTH_EXPIRED", "Codex OAuth token expired and has no refresh token. Run codex login.", {
+    throw new CodexTaskError("AUTH_EXPIRED", "Codex OAuth token expired and has no refresh token. Run codex login.", {
       exitCode: 2,
     });
   }
 
   const path = authPath(codexHome);
-  return withFileLock(`${path}.codexrun.lock`, async () => {
+  return withFileLock(`${path}.codex-task.lock`, async () => {
     const latestDocument = loadAuthDocument(codexHome);
     const latest = tokensFromDocument(latestDocument);
     if (!isTokenExpired(latest.access_token)) {
@@ -131,7 +131,7 @@ export async function ensureDirectAuth(
     }
     const refreshed = await refreshTokens(latest.refresh_token || initial.refresh_token, proxy);
     if (!refreshed.access_token) {
-      throw new CodexRunError("AUTH_REFRESH_FAILED", "Codex token refresh returned no access token");
+      throw new CodexTaskError("AUTH_REFRESH_FAILED", "Codex token refresh returned no access token");
     }
     const accountId = extractAccountId(refreshed.access_token) ?? latest.account_id;
     const previousTokens = (latestDocument["tokens"] as Record<string, unknown> | undefined) ?? {};

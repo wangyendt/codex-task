@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import type { ReasoningEffort } from "./types.js";
 import { appPaths, defaultCodexHome, legacyAppPaths } from "./paths.js";
-import { CodexRunError } from "./errors.js";
+import { CodexTaskError } from "./errors.js";
 
 export interface UserConfig {
   codexHome?: string | undefined;
@@ -49,7 +49,7 @@ function readUserConfig(): UserConfig {
   try {
     return JSON.parse(readFileSync(path, "utf8")) as UserConfig;
   } catch (error) {
-    throw new CodexRunError("INVALID_CONFIG", `Could not parse ${path}`, {
+    throw new CodexTaskError("INVALID_CONFIG", `Could not parse ${path}`, {
       exitCode: 2,
       cause: error,
     });
@@ -65,7 +65,7 @@ function envNumber(name: string, legacyName: string): number | undefined {
   if (raw === undefined || raw === "") return undefined;
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) {
-    throw new CodexRunError("INVALID_CONFIG", `${name} must be a non-negative number`, {
+    throw new CodexTaskError("INVALID_CONFIG", `${name} must be a non-negative number`, {
       exitCode: 2,
     });
   }
@@ -75,17 +75,17 @@ function envNumber(name: string, legacyName: string): number | undefined {
 export function loadConfig(overrides: UserConfig = {}): ResolvedConfig {
   const user = readUserConfig();
   const env: UserConfig = {
-    codexHome: envValue("CODEXRUN_CODEX_HOME", "CODEXERRAND_CODEX_HOME"),
-    directModel: envValue("CODEXRUN_MODEL", "CODEXERRAND_MODEL"),
-    directReasoning: envValue("CODEXRUN_REASONING", "CODEXERRAND_REASONING") as ReasoningEffort | undefined,
-    directTextTimeoutMs: envNumber("CODEXRUN_TEXT_TIMEOUT_MS", "CODEXERRAND_TEXT_TIMEOUT_MS"),
-    directImageTimeoutMs: envNumber("CODEXRUN_IMAGE_TIMEOUT_MS", "CODEXERRAND_IMAGE_TIMEOUT_MS"),
-    sdkTimeoutMs: envNumber("CODEXRUN_SDK_TIMEOUT_MS", "CODEXERRAND_SDK_TIMEOUT_MS"),
-    retries: envNumber("CODEXRUN_RETRIES", "CODEXERRAND_RETRIES"),
-    proxy: envValue("CODEXRUN_PROXY", "CODEXERRAND_PROXY"),
-    tempTtlMs: envNumber("CODEXRUN_TEMP_TTL_MS", "CODEXERRAND_TEMP_TTL_MS"),
-    pendingTaskTtlMs: envNumber("CODEXRUN_PENDING_TTL_MS", "CODEXERRAND_PENDING_TTL_MS"),
-    tempMaxBytes: envNumber("CODEXRUN_TEMP_MAX_BYTES", "CODEXERRAND_TEMP_MAX_BYTES"),
+    codexHome: envValue("CODEX_TASK_CODEX_HOME", "CODEXERRAND_CODEX_HOME"),
+    directModel: envValue("CODEX_TASK_MODEL", "CODEXERRAND_MODEL"),
+    directReasoning: envValue("CODEX_TASK_REASONING", "CODEXERRAND_REASONING") as ReasoningEffort | undefined,
+    directTextTimeoutMs: envNumber("CODEX_TASK_TEXT_TIMEOUT_MS", "CODEXERRAND_TEXT_TIMEOUT_MS"),
+    directImageTimeoutMs: envNumber("CODEX_TASK_IMAGE_TIMEOUT_MS", "CODEXERRAND_IMAGE_TIMEOUT_MS"),
+    sdkTimeoutMs: envNumber("CODEX_TASK_SDK_TIMEOUT_MS", "CODEXERRAND_SDK_TIMEOUT_MS"),
+    retries: envNumber("CODEX_TASK_RETRIES", "CODEXERRAND_RETRIES"),
+    proxy: envValue("CODEX_TASK_PROXY", "CODEXERRAND_PROXY"),
+    tempTtlMs: envNumber("CODEX_TASK_TEMP_TTL_MS", "CODEXERRAND_TEMP_TTL_MS"),
+    pendingTaskTtlMs: envNumber("CODEX_TASK_PENDING_TTL_MS", "CODEXERRAND_PENDING_TTL_MS"),
+    tempMaxBytes: envNumber("CODEX_TASK_TEMP_MAX_BYTES", "CODEXERRAND_TEMP_MAX_BYTES"),
   };
 
   const merged: UserConfig = { ...DEFAULT_CONFIG, ...user, ...stripUndefined(env), ...stripUndefined(overrides) };

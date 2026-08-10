@@ -6,7 +6,7 @@ import { buildDirectRequest, RESPONSES_URL, type DirectRequestSpec } from "./pro
 import { ImpersonatedSession } from "./http.js";
 import { parseDirectResponse, type ParsedDirectResponse } from "./sse.js";
 import { loadConfig } from "../../config.js";
-import { CodexRunError, isAbortError } from "../../errors.js";
+import { CodexTaskError, isAbortError } from "../../errors.js";
 import { validateImageOptions, writePngArtifact } from "../../images.js";
 import type { Artifact, ImageOptions, TaskEvent, TextOptions, UsageSummary } from "../../types.js";
 
@@ -26,41 +26,41 @@ function emit(callback: ((event: TaskEvent) => void) | undefined, event: TaskEve
   callback?.(event);
 }
 
-function mapHttpError(status: number, body: string): CodexRunError {
+function mapHttpError(status: number, body: string): CodexTaskError {
   const detail = body.slice(0, 500);
   if (status === 401 || status === 403) {
-    return new CodexRunError("DIRECT_AUTH_FAILED", `Direct authentication failed with HTTP ${status}`, {
+    return new CodexTaskError("DIRECT_AUTH_FAILED", `Direct authentication failed with HTTP ${status}`, {
       details: detail,
     });
   }
   if (status === 429) {
-    return new CodexRunError("DIRECT_RATE_LIMITED", "Direct backend is rate limited", {
+    return new CodexTaskError("DIRECT_RATE_LIMITED", "Direct backend is rate limited", {
       retryable: true,
       details: detail,
     });
   }
   if (status >= 500) {
-    return new CodexRunError("DIRECT_SERVER_ERROR", `Direct backend returned HTTP ${status}`, {
+    return new CodexTaskError("DIRECT_SERVER_ERROR", `Direct backend returned HTTP ${status}`, {
       retryable: true,
       details: detail,
     });
   }
   if (status === 400) {
-    return new CodexRunError("DIRECT_REQUEST_REJECTED", "Direct backend rejected the request", {
+    return new CodexTaskError("DIRECT_REQUEST_REJECTED", "Direct backend rejected the request", {
       details: detail,
     });
   }
-  return new CodexRunError("DIRECT_HTTP_ERROR", `Direct backend returned HTTP ${status}`, {
+  return new CodexTaskError("DIRECT_HTTP_ERROR", `Direct backend returned HTTP ${status}`, {
     retryable: status === 0,
     details: detail,
   });
 }
 
-function normalizeDirectError(error: unknown): CodexRunError {
-  if (error instanceof CodexRunError) return error;
+function normalizeDirectError(error: unknown): CodexTaskError {
+  if (error instanceof CodexTaskError) return error;
   const message = error instanceof Error ? error.message : String(error);
   const retryable = /timeout|timed out|econnreset|socket|network|empty response/i.test(message);
-  return new CodexRunError("DIRECT_TRANSPORT_ERROR", message, { retryable, cause: error });
+  return new CodexTaskError("DIRECT_TRANSPORT_ERROR", message, { retryable, cause: error });
 }
 
 async function sendOnce(
@@ -81,7 +81,7 @@ async function sendOnce(
     if (response.status !== 200) throw mapHttpError(response.status, response.text);
     const parsed = parseDirectResponse(response.text);
     if (!parsed.text && !parsed.image) {
-      throw new CodexRunError("DIRECT_EMPTY_RESPONSE", "Direct backend returned an empty response", {
+      throw new CodexTaskError("DIRECT_EMPTY_RESPONSE", "Direct backend returned an empty response", {
         retryable: true,
       });
     }
@@ -158,7 +158,7 @@ export async function executeDirectText(taskId: string, options: TextOptions): P
     options.onEvent,
   );
   if (!response.text) {
-    throw new CodexRunError("DIRECT_EMPTY_TEXT", "Direct backend returned no text", { retryable: true });
+    throw new CodexTaskError("DIRECT_EMPTY_TEXT", "Direct backend returned no text", { retryable: true });
   }
   return { text: response.text, model, usage: response.usage };
 }
@@ -214,7 +214,7 @@ export async function executeDirectImage(taskId: string, options: ImageOptions):
           options.onEvent,
         );
         if (!response.image) {
-          throw new CodexRunError("DIRECT_EMPTY_IMAGE", "Direct backend returned no image", {
+          throw new CodexTaskError("DIRECT_EMPTY_IMAGE", "Direct backend returned no image", {
             retryable: !response.text,
             details: response.text ? { text: response.text } : undefined,
           });
@@ -233,7 +233,7 @@ export async function executeDirectImage(taskId: string, options: ImageOptions):
         if (response.usage?.outputTokens) usage.outputTokens = (usage.outputTokens ?? 0) + response.usage.outputTokens;
       } catch (error) {
         const normalized = normalizeDirectError(error);
-        throw new CodexRunError(normalized.code, normalized.message, {
+        throw new CodexTaskError(normalized.code, normalized.message, {
           retryable: normalized.retryable,
           exitCode: normalized.exitCode,
           details: { upstream: normalized.details, artifacts: artifacts.filter(Boolean) },

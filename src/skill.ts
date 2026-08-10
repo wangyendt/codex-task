@@ -2,5 +2,5 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 export function companionSkillPath(): string {
-  return resolve(dirname(fileURLToPath(import.meta.url)), "..", "skills", "codexrun");
+  return resolve(dirname(fileURLToPath(import.meta.url)), "..", "skills", "codex-task");
 }

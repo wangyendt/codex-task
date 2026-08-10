@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { CodexRunError } from "../../errors.js";
+import { CodexTaskError } from "../../errors.js";
 
 const require = createRequire(import.meta.url);
 
@@ -29,7 +29,7 @@ function loadRequests(): NativeRequests {
     requests = module.requests;
     return requests;
   } catch (error) {
-    throw new CodexRunError(
+    throw new CodexTaskError(
       "DIRECT_UNAVAILABLE",
       "The Direct native transport is unavailable on this platform. Install @ossiana/node-libcurl or use --backend sdk.",
       { exitCode: 2, cause: error },
@@ -57,7 +57,7 @@ export class ImpersonatedSession {
   constructor(timeoutMs: number, proxy?: string) {
     const effectiveProxy =
       proxy ??
-      process.env["CODEXRUN_PROXY"] ??
+      process.env["CODEX_TASK_PROXY"] ??
       process.env["CODEXERRAND_PROXY"] ??
       process.env["ALL_PROXY"] ??
       process.env["HTTPS_PROXY"] ??

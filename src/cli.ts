@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { Command, Option } from "commander";
 import { dispatch, streamTaskEvents } from "./api.js";
 import { runDoctor } from "./doctor.js";
-import { asCodexRunError, usageError } from "./errors.js";
+import { asCodexTaskError, usageError } from "./errors.js";
 import { companionSkillPath } from "./skill.js";
 import { runGarbageCollection } from "./state.js";
 import type {
@@ -171,7 +171,7 @@ async function execute(request: TaskRequest, stream: boolean): Promise<void> {
 
 const program = new Command();
 program
-  .name("codexrun")
+  .name("codex-task")
   .description("Unofficial agent-to-agent text, image, and workspace task runner for Codex")
   .version(packageVersion());
 
@@ -262,7 +262,7 @@ program.command("doctor").description("inspect local Direct and SDK readiness wi
   writeJson(runDoctor());
 });
 
-program.command("gc").description("remove expired CodexRun state and temporary artifacts").action(() => {
+program.command("gc").description("remove expired CodexTask state and temporary artifacts").action(() => {
   writeJson(runGarbageCollection());
 });
 
@@ -274,7 +274,7 @@ program
   .action(() => writeJson({ path: companionSkillPath() }));
 
 program.parseAsync(process.argv).catch((error: unknown) => {
-  const normalized = asCodexRunError(error);
+  const normalized = asCodexTaskError(error);
   writeJson({
     status: "failed",
     error: {

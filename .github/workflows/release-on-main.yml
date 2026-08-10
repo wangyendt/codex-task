@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: codexrun-release-main
+  group: codex-task-release-main
   cancel-in-progress: false
 
 permissions:

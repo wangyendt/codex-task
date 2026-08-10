@@ -15,7 +15,7 @@ export function defaultCodexHome(): string {
   return process.env["CODEX_HOME"] ?? join(homedir(), ".codex");
 }
 
-function namedAppPaths(name: "codexrun" | "codexerrand", override: string | undefined, env: NodeJS.ProcessEnv): AppPaths {
+function namedAppPaths(name: "codex-task" | "codexerrand", override: string | undefined, env: NodeJS.ProcessEnv): AppPaths {
   if (override) {
     const configDir = join(override, "config");
     const stateDir = join(override, "state");
@@ -65,7 +65,7 @@ function namedAppPaths(name: "codexrun" | "codexerrand", override: string | unde
 }
 
 export function appPaths(env: NodeJS.ProcessEnv = process.env): AppPaths {
-  return namedAppPaths("codexrun", env["CODEXRUN_HOME"], env);
+  return namedAppPaths("codex-task", env["CODEX_TASK_HOME"], env);
 }
 
 /** Read-only compatibility paths for users migrating from CodexErrand. */

@@ -5,7 +5,7 @@ import type { Input } from "@openai/codex-sdk";
 import { executeDirectImage, executeDirectText } from "./backends/direct/index.js";
 import { buildWorkspacePrompt, resolveWorkingDirectory, runSdkTurn, type SdkExecution } from "./backends/sdk.js";
 import { loadConfig } from "./config.js";
-import { asCodexRunError, CodexRunError, isAbortError, usageError } from "./errors.js";
+import { asCodexTaskError, CodexTaskError, isAbortError, usageError } from "./errors.js";
 import { EventQueue } from "./events.js";
 import { ensureDir } from "./fs-utils.js";
 import { outputPathForImage, validateImageOptions } from "./images.js";
@@ -39,7 +39,7 @@ function opportunisticGc(): void {
 }
 
 function failedResult(taskId: string, backend: Backend, error: unknown, artifacts: Artifact[] = []): FailedResult | CancelledResult {
-  const normalized = asCodexRunError(error);
+  const normalized = asCodexTaskError(error);
   if (isAbortError(error) || normalized.code === "CANCELLED" || normalized.code === "TIMEOUT") {
     return {
       status: "cancelled",
@@ -209,7 +209,7 @@ async function executeSdkImage(taskId: string, options: ImageOptions): Promise<S
   const artifacts: Artifact[] = [];
   for (const target of expected) {
     if (!existsSync(target.path)) {
-      throw new CodexRunError("SDK_IMAGE_MISSING", `Codex SDK did not create ${target.path}`);
+      throw new CodexTaskError("SDK_IMAGE_MISSING", `Codex SDK did not create ${target.path}`);
     }
     artifacts.push({
       path: target.path,
@@ -333,7 +333,7 @@ export async function resumeTask(options: ResumeTaskOptions): Promise<TaskResult
 
 function completedFromSdk(taskId: string, execution: SdkExecution, effectiveModel?: string): CompletedResult {
   if (execution.status !== "completed") {
-    throw new CodexRunError("SDK_TASK_INCOMPLETE", execution.text || "SDK task did not complete", {
+    throw new CodexTaskError("SDK_TASK_INCOMPLETE", execution.text || "SDK task did not complete", {
       details: execution.questions,
     });
   }

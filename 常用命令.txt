@@ -1,26 +1,26 @@
-CodexRun 常用命令
+CodexTask 常用命令
 ====================
 
 一、安装
 --------
 
-# 推荐：全局安装 CLI，安装后 Agent 可以直接执行 codexrun
-npm install -g codexrun
+# 推荐：全局安装 CLI，安装后 Agent 可以直接执行 codex-task
+npm install -g codex-task
 
 # 查看版本
-codexrun --version
+codex-task --version
 
 # 升级到最新版
-npm install -g codexrun@latest
+npm install -g codex-task@latest
 
 # 卸载
-npm uninstall -g codexrun
+npm uninstall -g codex-task
 
 # 不全局安装，临时执行最新版
-npx --yes codexrun@latest --version
-npx --yes codexrun@latest doctor
+npx --yes codex-task@latest --version
+npx --yes codex-task@latest doctor
 
-# 注意：npm 包名是 codexrun，不是 @wang121ye/codexrun
+# 注意：npm 包名是 codex-task，不是 @wang121ye/codex-task
 
 
 二、安装 Companion Skill
@@ -29,66 +29,66 @@ npx --yes codexrun@latest doctor
 # 安装 skillmanager
 npm install -g @wang121ye/skillmanager
 
-# 将 CodexRun Skill 安装给支持的 Agent
-skillmanager install https://github.com/wangyendt/codexrun --global
+# 将 CodexTask Skill 安装给支持的 Agent
+skillmanager install https://github.com/wangyendt/codex-task --global
 
-# Skill 只是教 Agent 如何调用 CLI，不会安装 codexrun 命令。
+# Skill 只是教 Agent 如何调用 CLI，不会安装 codex-task 命令。
 # 因此通常还需要执行：
-npm install -g codexrun
+npm install -g codex-task
 
 # 查看 npm 包内置 Skill 的路径
-codexrun skill path
+codex-task skill path
 
 
 三、诊断
 --------
 
 # 检查 Codex 登录、Direct transport、模型解析和 Codex SDK
-codexrun doctor
+codex-task doctor
 
-# 清理 CodexRun 管理的临时图片和过期任务状态
-codexrun gc
+# 清理 CodexTask 管理的临时图片和过期任务状态
+codex-task gc
 
 # 查看总帮助或子命令帮助
-codexrun --help
-codexrun text --help
-codexrun image --help
-codexrun task --help
-codexrun resume --help
+codex-task --help
+codex-task text --help
+codex-task image --help
+codex-task task --help
+codex-task resume --help
 
 
 四、文生文（Direct，默认模式）
 -----------------------------
 
 # 简单文本任务
-codexrun text "把下面的内容整理成简洁的发布公告" --backend direct
+codex-task text "把下面的内容整理成简洁的发布公告" --backend direct
 
 # 从文件读取长 Prompt
-codexrun text --prompt-file ./task.md --backend direct
+codex-task text --prompt-file ./task.md --backend direct
 
 # 通过 stdin 传递包含引号、换行的 Prompt
-printf '%s' "$PROMPT" | codexrun text --backend direct
+printf '%s' "$PROMPT" | codex-task text --backend direct
 
 # 指定模型和推理强度
-codexrun text "分析这个方案的主要风险" \
+codex-task text "分析这个方案的主要风险" \
   --backend direct \
   --model gpt-5.6-sol \
   --reasoning high
 
 # 输出 JSONL 进度事件
-codexrun text "生成一份迁移方案" --backend direct --stream
+codex-task text "生成一份迁移方案" --backend direct --stream
 
 
 五、文生图（Direct）
 -------------------
 
 # 生成单张图片并保存到指定目录
-codexrun image "一张简洁、精确的机器人关节爆炸图" \
+codex-task image "一张简洁、精确的机器人关节爆炸图" \
   --backend direct \
   --output ./artifacts
 
 # 指定尺寸、质量和背景
-codexrun image "透明背景的产品图标" \
+codex-task image "透明背景的产品图标" \
   --backend direct \
   --output ./artifacts \
   --size 1024x1024 \
@@ -96,7 +96,7 @@ codexrun image "透明背景的产品图标" \
   --background transparent
 
 # 一次生成多张，最多并发两个请求
-codexrun image "未来主义工具箱概念图" \
+codex-task image "未来主义工具箱概念图" \
   --backend direct \
   --output ./artifacts \
   --count 4 \
@@ -107,13 +107,13 @@ codexrun image "未来主义工具箱概念图" \
 -------------------
 
 # 编辑一张参考图
-codexrun image "保留主体，把背景改成整洁的摄影棚" \
+codex-task image "保留主体，把背景改成整洁的摄影棚" \
   --backend direct \
   --image ./reference.png \
   --output ./artifacts
 
 # 使用多张参考图，--image 最多重复五次
-codexrun image "使用第一张的主体和第二张的配色" \
+codex-task image "使用第一张的主体和第二张的配色" \
   --backend direct \
   --image ./subject.png \
   --image ./style.png \
@@ -124,24 +124,24 @@ codexrun image "使用第一张的主体和第二张的配色" \
 ------------------------------
 
 # 在指定仓库内完成代码任务
-codexrun task "实现该功能并运行相关测试" \
+codex-task task "实现该功能并运行相关测试" \
   --backend sdk \
   --cwd /absolute/path/to/repository
 
 # 单次调用，不允许返回 needs_input
-codexrun task "按现有项目约定修复这个问题" \
+codex-task task "按现有项目约定修复这个问题" \
   --backend sdk \
   --cwd /absolute/path/to/repository \
   --no-followup
 
 # 禁止网络
-codexrun task "整理本地代码，不访问网络" \
+codex-task task "整理本地代码，不访问网络" \
   --backend sdk \
   --cwd /absolute/path/to/repository \
   --no-network
 
 # 使用 workspace-write sandbox，而不是默认 danger-full-access
-codexrun task "修改当前项目并测试" \
+codex-task task "修改当前项目并测试" \
   --backend sdk \
   --cwd /absolute/path/to/repository \
   --sandbox workspace-write
@@ -151,20 +151,20 @@ codexrun task "修改当前项目并测试" \
 --------------------------
 
 # task 返回 needs_input 和 taskId 后，用回答恢复
-codexrun resume <task-id> "是，必须保持向后兼容"
+codex-task resume <task-id> "是，必须保持向后兼容"
 
 # 长回答通过 stdin 传递
-printf '%s' "这是用户补充的完整要求" | codexrun resume <task-id>
+printf '%s' "这是用户补充的完整要求" | codex-task resume <task-id>
 
 
 九、TypeScript SDK
 -----------------
 
 # 在项目中安装 SDK
-npm install codexrun
+npm install codex-task
 
 # 导入示例
-# import { generateText, generateImage, runTask } from "codexrun";
+# import { generateText, generateImage, runTask } from "codex-task";
 
 
 十、开发与发布维护
@@ -183,14 +183,14 @@ npm test
 npm run build
 
 # 查看 npm 最新版本
-npm view codexrun version
+npm view codex-task version
 
 # 从 registry 临时验证最新版 CLI
 cd /tmp
-npx --yes codexrun@latest --version
+npx --yes codex-task@latest --version
 
 # 查看 GitHub Actions
-gh run list --repo wangyendt/codexrun
+gh run list --repo wangyendt/codex-task
 
 # 查看本地仓库状态
 git status --short --branch
@@ -200,13 +200,13 @@ git status --short --branch
 ----------------------
 
 # GitHub Secret 名称（值不会显示）
-gh secret list --repo wangyendt/codexrun
+gh secret list --repo wangyendt/codex-task
 
 # GitHub Variable，应看到 AUTO_PUBLISH_NPM=true
-gh variable list --repo wangyendt/codexrun
+gh variable list --repo wangyendt/codex-task
 
 # 查看 npm 上的最新版和 provenance
-npm view codexrun version dist-tags dist.attestations --json
+npm view codex-task version dist-tags dist.attestations --json
 
 # 正常情况下不要手动 npm publish。
 # main 上的普通 push 会自动升级 patch 版本、发布 npm 并创建 vX.Y.Z tag。

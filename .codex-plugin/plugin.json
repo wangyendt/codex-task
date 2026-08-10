@@ -1,13 +1,13 @@
 {
-  "name": "codexrun",
+  "name": "codex-task",
   "version": "0.2.0",
-  "description": "Delegate focused text, image, and workspace tasks to CodexRun",
+  "description": "Delegate focused text, image, and workspace tasks to CodexTask",
   "author": {
     "name": "wang121ye",
     "url": "https://github.com/wangyendt"
   },
-  "homepage": "https://github.com/wangyendt/codexrun",
-  "repository": "https://github.com/wangyendt/codexrun",
+  "homepage": "https://github.com/wangyendt/codex-task",
+  "repository": "https://github.com/wangyendt/codex-task",
   "license": "MIT",
   "keywords": [
     "agent",
@@ -17,19 +17,19 @@
   ],
   "skills": "./skills/",
   "interface": {
-    "displayName": "CodexRun",
+    "displayName": "CodexTask",
     "shortDescription": "Delegate text, image, and workspace tasks",
-    "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexRun CLI.",
+    "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexTask CLI.",
     "developerName": "wang121ye",
     "category": "Developer Tools",
     "capabilities": [
       "Interactive",
       "Write"
     ],
-    "websiteURL": "https://github.com/wangyendt/codexrun",
+    "websiteURL": "https://github.com/wangyendt/codex-task",
     "defaultPrompt": [
-      "Delegate this focused task with CodexRun.",
-      "Generate this image through CodexRun.",
+      "Delegate this focused task with CodexTask.",
+      "Generate this image through CodexTask.",
       "Send this workspace task to a Codex worker."
     ]
   }

@@ -1,17 +1,17 @@
 {
-  "name": "codexrun",
+  "name": "codex-task",
   "version": "0.2.0",
   "description": "Unofficial agent-to-agent text, image, and workspace task runner for Codex",
   "type": "module",
   "author": "wang121ye",
   "license": "MIT",
-  "homepage": "https://github.com/wangyendt/codexrun#readme",
+  "homepage": "https://github.com/wangyendt/codex-task#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/wangyendt/codexrun.git"
+    "url": "git+https://github.com/wangyendt/codex-task.git"
   },
   "bugs": {
-    "url": "https://github.com/wangyendt/codexrun/issues"
+    "url": "https://github.com/wangyendt/codex-task/issues"
   },
   "keywords": [
     "agent",
@@ -22,7 +22,7 @@
     "typescript"
   ],
   "bin": {
-    "codexrun": "dist/cli.js"
+    "codex-task": "dist/cli.js"
   },
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",

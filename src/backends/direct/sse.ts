@@ -1,4 +1,4 @@
-import { CodexRunError } from "../../errors.js";
+import { CodexTaskError } from "../../errors.js";
 import type { UsageSummary } from "../../types.js";
 
 interface SseEvent {
@@ -94,7 +94,7 @@ function extractImage(events: SseEvent[]): { image?: Buffer | undefined; imageSi
 export function parseDirectResponse(text: string): ParsedDirectResponse {
   const events = parseSse(text);
   const failure = failureMessage(events);
-  if (failure) throw new CodexRunError("DIRECT_RESPONSE_FAILED", failure, { retryable: false });
+  if (failure) throw new CodexTaskError("DIRECT_RESPONSE_FAILED", failure, { retryable: false });
   return {
     text: extractText(events),
     ...extractImage(events),

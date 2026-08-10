@@ -2,7 +2,7 @@
 
 ## imgen
 
-CodexRun's Direct backend is derived in part from ideas and MIT-licensed code in [`lawrencewzen/imgen`](https://github.com/lawrencewzen/imgen), including Codex OAuth handling, installation identity, TLS impersonation, Codex-like request metadata, image input encoding, and image SSE extraction.
+CodexTask's Direct backend is derived in part from ideas and MIT-licensed code in [`lawrencewzen/imgen`](https://github.com/lawrencewzen/imgen), including Codex OAuth handling, installation identity, TLS impersonation, Codex-like request metadata, image input encoding, and image SSE extraction.
 
 The upstream license at the reviewed revision states:
 
@@ -30,8 +30,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ```
 
-CodexRun substantially restructures the implementation, adds text and SDK backends, structured task results, Responses Lite encoding, state management, validation, tests, and distribution assets.
+CodexTask substantially restructures the implementation, adds text and SDK backends, structured task results, Responses Lite encoding, state management, validation, tests, and distribution assets.
 
 ## OpenAI Codex SDK
 
-CodexRun depends on `@openai/codex-sdk` for its SDK backend. Codex and OpenAI are trademarks of OpenAI. Use of the dependency does not imply affiliation, endorsement, or sponsorship.
+CodexTask depends on `@openai/codex-sdk` for its SDK backend. Codex and OpenAI are trademarks of OpenAI. Use of the dependency does not imply affiliation, endorsement, or sponsorship.
