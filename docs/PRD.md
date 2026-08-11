@@ -106,7 +106,7 @@ codex-task skill path
 - 输入格式：PNG、JPEG、WebP、GIF。
 - 参考图：0–5 张；单图 ≤ 20 MiB，总输入 ≤ 50 MiB。
 - 数量：1–10，默认 1；并发：1–3，默认 1。
-- 尺寸：`auto` 或 `WIDTHxHEIGHT`，最长边 ≤ 3840。
+- 尺寸：`auto` 或正整数 `WIDTHxHEIGHT`，不设本地宽高上限；自定义值原样交给后端，不支持时返回后端错误。
 - quality：`auto|low|medium|high`。
 - background：`auto|opaque|transparent`。
 - 默认在当前目录写入唯一文件名 `image-<task-id前8位>.png`。

@@ -18,9 +18,13 @@ test("validateImageOptions accepts bounded image settings", () => {
   assert.equal(value.size, "3840x2160");
 });
 
+test("validateImageOptions passes through dimensions above the former local limit", () => {
+  const value = validateImageOptions({ prompt: "x", size: "7680x4320" });
+  assert.equal(value.size, "7680x4320");
+});
+
 test("validateImageOptions rejects unsafe count and dimensions", () => {
   assert.throws(() => validateImageOptions({ prompt: "x", count: 11 }), /count/);
-  assert.throws(() => validateImageOptions({ prompt: "x", size: "4096x2160" }), /3840/);
   assert.throws(() => validateImageOptions({ prompt: "x", size: "wide" }), /WIDTHxHEIGHT/);
 });
 

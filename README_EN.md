@@ -126,7 +126,7 @@ SDK tasks default to `sandbox=danger-full-access`, `approval=never`, and `networ
 - Managed temporary output: `--temp`, under `os.tmpdir()/codex-task/<task-id>`, eligible for cleanup after 24 hours.
 - `--temp` and `--output` are mutually exclusive. Existing files are protected unless `--overwrite` is present.
 
-Image controls: `size=auto|WIDTHxHEIGHT` (longest edge ≤ 3840), `quality=auto|low|medium|high`, `background=auto|opaque|transparent`, `count=1–10`, and `concurrency=1–3`.
+Image controls: `size=auto|WIDTHxHEIGHT` (positive integers with no local dimension cap), `quality=auto|low|medium|high`, `background=auto|opaque|transparent`, `count=1–10`, and `concurrency=1–3`. Custom dimensions are passed through; unsupported sizes return the backend error.
 
 ## Companion skill
 

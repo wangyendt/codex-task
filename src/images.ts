@@ -62,14 +62,8 @@ export function validateImageOptions(options: ImageOptions): ValidatedImageOptio
   if (!Number.isInteger(concurrency) || concurrency < 1 || concurrency > 3) {
     throw usageError("concurrency must be an integer from 1 to 3");
   }
-  if (!/^(auto|[1-9]\d{0,3}x[1-9]\d{0,3})$/.test(size)) {
+  if (!/^(auto|[1-9]\d*x[1-9]\d*)$/.test(size)) {
     throw usageError("size must be auto or WIDTHxHEIGHT");
-  }
-  if (size !== "auto") {
-    const [width, height] = size.split("x").map(Number);
-    if (!width || !height || Math.max(width, height) > 3840) {
-      throw usageError("image width and height must be at most 3840");
-    }
   }
 
   return {

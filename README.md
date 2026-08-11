@@ -190,7 +190,7 @@ codex-task image "仅供本轮分析的草图" --temp
 codex-task gc
 ```
 
-图片参数：`size=auto|WIDTHxHEIGHT`（最长边 ≤ 3840）、`quality=auto|low|medium|high`、`background=auto|opaque|transparent`、`count=1–10`、`concurrency=1–3`。
+图片参数：`size=auto|WIDTHxHEIGHT`（宽高为正整数，不设本地上限）、`quality=auto|low|medium|high`、`background=auto|opaque|transparent`、`count=1–10`、`concurrency=1–3`。自定义尺寸会原样交给后端；模型不支持时返回后端错误。
 
 ## 安装给其他 Agent
 
