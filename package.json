@@ -1,6 +1,6 @@
 {
   "name": "codex-task",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Unofficial agent-to-agent text, image, and workspace task runner for Codex",
   "type": "module",
   "author": "wang121ye",
