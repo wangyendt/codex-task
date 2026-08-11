@@ -21,6 +21,8 @@ for (const required of [
   "scripts/service/uninstall-ubuntu.sh",
   "scripts/service/install-macos.sh",
   "scripts/service/uninstall-macos.sh",
+  "scripts/service/install.sh",
+  "scripts/service/uninstall.sh",
   "scripts/service/Install-Windows.ps1",
   "scripts/service/Uninstall-Windows.ps1",
   "examples/mobile/README.md",

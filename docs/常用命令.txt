@@ -23,12 +23,16 @@ codex-task serve --help
 # === 自托管服务：持久服务使用全局包，不把 npx 写入开机启动。 ===
 codex-task serve --host 127.0.0.1 --port 7777
 node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))' > ./codex-task-token && chmod 600 ./codex-task-token && codex-task serve --host 0.0.0.0 --port 7777 --token-file ./codex-task-token
+bash ./scripts/service/install.sh
+bash ./scripts/service/uninstall.sh
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
+
+# === 自托管服务底层平台脚本：通常优先使用上面的统一入口。 ===
 bash ./scripts/service/install-ubuntu.sh
 bash ./scripts/service/uninstall-ubuntu.sh
 bash ./scripts/service/install-macos.sh
 bash ./scripts/service/uninstall-macos.sh
-powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
 systemctl --user status codex-task.service
 journalctl --user -u codex-task.service -f
 launchctl print "gui/$(id -u)/com.wangyendt.codex-task"

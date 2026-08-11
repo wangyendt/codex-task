@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
@@ -15,6 +16,14 @@ test("persistent service installers use the global package and a protected token
     assert.match(contents, /npm install -g codex-task@latest/);
     assert.doesNotMatch(contents, /\bnpx\b/);
     assert.match(contents, /token-file/i);
+  }
+});
+
+test("Unix users get one discoverable install and uninstall entry point", () => {
+  for (const name of ["install.sh", "uninstall.sh"]) {
+    const output = execFileSync("bash", [join(root, "scripts", "service", name), "--help"], { encoding: "utf8" });
+    assert.match(output, /Ubuntu\/Linux/);
+    assert.match(output, /macOS/);
   }
 });
 

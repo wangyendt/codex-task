@@ -1,12 +1,12 @@
 # CodexTask
 
-> 把文本、图片和项目任务交给另一个 Codex worker，拿回结构化文本、生成图片或已经完成的工作区变更。
+> 给 Agent 和自动化脚本用的 Codex 任务运行器：输入文本、图片或项目目录，拿回文本、生成图片或工作区改动。
 
 [English](./README_EN.md) · [产品需求文档](./docs/PRD.md) · [远程部署与手机调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md) · [常用命令](./docs/常用命令.txt) · [Companion Skill](./skills/codex-task/SKILL.md)
 
-CodexTask 是一个轻量、可组合的跨 Agent 多模态任务运行器。它提供 CLI、TypeScript API、可安装给其他 Agent 的 Skill，以及可选的自托管 HTTP 服务；没有中心化托管平台，也不需要额外 API key。
+CodexTask 让 Codex、Claude Code、Gemini CLI 或你自己的程序把任务交给独立的 Codex worker。它提供 CLI、TypeScript API、Companion Skill 和可选的自托管 HTTP 服务，复用现有 Codex 登录，不需要另配 API key。
 
-你只需要按“想拿回什么”选择命令：
+先按期望结果选命令：
 
 | 期望结果 | 命令 | 可组合输入 | 典型任务 |
 | --- | --- | --- | --- |
@@ -27,7 +27,7 @@ npm install -g codex-task
 codex-task doctor
 ```
 
-下面用同一份“健身营养餐”串起文生图、图生文、图生图、工作区任务和恢复。图片与 JSON 都来自真实模型请求，不是占位图或手写示意；由于生成模型具有随机性，重新执行会得到不同但同类的结果。
+下面用一份“健身营养餐”演示文生图、图生文、图生图、工作区任务和恢复。图片与 JSON 都来自真实模型请求；生成模型有随机性，重新执行会得到同类但不同的结果。
 
 ### 1. 生成图片：一份健身营养餐
 
@@ -35,7 +35,7 @@ codex-task doctor
 codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果；四种食物分区摆放，俯拍，完整餐盘，食材边界清晰；浅灰桌面，柔和自然光；不要文字、水印、餐具和其他食物。" -o ./docs/assets/fitness-meal.png --size 1024x1024 --quality high
 ```
 
-这个示例用 `--output` 保存到 README 资产目录；省略它时，最终图片默认保存在当前目录，而不是临时目录：
+这里用 `--output` 把图片保存到 README 资产目录。省略该参数时，图片默认保存在当前目录：
 
 ```json
 {
@@ -64,7 +64,7 @@ codex-task text "识别图片中的全部食物，估算每项可食部分重量
 
 <img src="./docs/assets/fitness-meal.png" alt="CodexTask 图生文输入图片" width="520">
 
-`text` 不只是文生文，也支持图生文和图文生文。下面是该命令真实返回的结构化内容，完整文件见 [`fitness-meal-analysis.json`](./docs/examples/fitness-meal-analysis.json)：
+`text` 支持文生文、图生文和图文生文。下面是该命令返回的结构化内容，原始文件见 [`fitness-meal-analysis.json`](./docs/examples/fitness-meal-analysis.json)：
 
 ```json
 {
@@ -143,7 +143,7 @@ codex-task resume 7dd7a7d7-... "按单人份展示" -f ./copy-guidelines.md -i .
 }
 ```
 
-## 组合输入，而不是四选一
+## 组合输入
 
 位置 prompt、重复的 `-f/--prompt-file`、非空 stdin 和重复的 `-i/--image` 可以同时出现：
 
@@ -151,7 +151,7 @@ codex-task resume 7dd7a7d7-... "按单人份展示" -f ./copy-guidelines.md -i .
 printf '%s' "总热量控制在 700 kcal 内" | codex-task text "制定调整建议" -f ./training-goal.md -f ./allergies.md -i ./meal-front.png -i ./meal-side.png
 ```
 
-CodexTask 按固定顺序组合输入：位置 prompt → prompt 文件（按命令行顺序）→ stdin；图片保持 `-i` 的顺序。文件内容会带绝对路径边界标记，避免多份长 prompt 混在一起。每张图片不超过 20 MiB，总和不超过 50 MiB。
+输入顺序固定为：位置 prompt → prompt 文件（按命令行顺序）→ stdin；图片保持 `-i` 的顺序。每份文件都带绝对路径边界标记，避免多份长 prompt 混在一起。每张图片不超过 20 MiB，总和不超过 50 MiB。
 
 ## 两种后端
 
@@ -175,7 +175,7 @@ approval: never
 network: true
 ```
 
-这意味着 worker 可以访问工作区外路径、执行命令并联网，而且不会等待权限确认。只委派可信 prompt 和可信项目；需要收窄时显式传 `--sandbox workspace-write` 或 `--no-network`。
+默认配置下，worker 可以访问工作区外路径、执行命令并联网，而且不会等待权限确认。只委派可信 prompt 和可信项目；需要限制范围时传 `--sandbox workspace-write` 或 `--no-network`。
 
 ## 图片输出与临时文件
 
@@ -194,9 +194,9 @@ codex-task gc
 
 ## 安装给其他 Agent
 
-仓库内置 [`skills/codex-task/SKILL.md`](./skills/codex-task/SKILL.md)。它教调用方 Agent 何时运行 `text`、`image`、`task` 或 `resume`；它不是注入底层 Codex worker 的 skill。
+仓库内置 [`skills/codex-task/SKILL.md`](./skills/codex-task/SKILL.md)。这个 Skill 供调用方 Agent 使用，教它何时运行 `text`、`image`、`task` 或 `resume`。底层 Codex worker 不会加载它。
 
-Skill 和 CLI 是两件事：SkillTruck 负责安装 Skill，npm 负责安装可执行命令。安装 Skill 不会自动全局安装 npm 包。
+SkillTruck 负责安装 Skill，npm 负责安装可执行命令。安装 Skill 不会自动全局安装 npm 包。
 
 ```bash
 npm install -g skilltruck codex-task
@@ -207,7 +207,7 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 
 ## 手机远程调用与开机自启
 
-`codex-task serve` 把四类任务开放为带 Bearer Token 的异步 HTTP API。手机提交后先拿到 `jobId`，再轮询状态；这样不会因为一次图片或工作区任务耗时几分钟而一直占住移动端请求。
+`codex-task serve` 把四类任务开放为带 Bearer Token 的异步 HTTP API。服务收到任务后立即返回 `jobId`，手机再轮询状态，不需要维持一个可能持续数分钟的请求。
 
 | 目标 | 接口 |
 | --- | --- |
@@ -218,17 +218,24 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 | 查询进度 | `GET /v1/jobs/:jobId` |
 | 下载产物 | `GET /v1/jobs/:jobId/artifacts/:index` |
 
-持久服务选择 `npm install -g codex-task@latest`，不使用 `npx`：开机启动不应依赖 npm 网络，启动程序路径也应稳定。三平台脚本会安装或升级全局包、生成随机 token、创建用户级自启动项并立即启动服务。
+开机服务使用 `npm install -g codex-task@latest`。这样启动时不依赖 npm 网络，执行文件路径也不会变化。三平台脚本会安装或升级全局包、生成随机 token、创建用户级自启动项并立即启动服务。
 
 ```bash
-# Ubuntu：systemd user service
-bash ./scripts/service/install-ubuntu.sh
-
-# macOS：LaunchAgent
-bash ./scripts/service/install-macos.sh
+# Ubuntu/Linux 或 macOS：自动识别 systemd user / LaunchAgent
+bash ./scripts/service/install.sh
 
 # Windows PowerShell：Scheduled Task
 powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
+```
+
+卸载自启动服务但保留全局 npm 包、Codex 登录和任务数据：
+
+```bash
+# Ubuntu/Linux 或 macOS
+bash ./scripts/service/uninstall.sh
+
+# Windows PowerShell
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
 ```
 
 默认监听 `0.0.0.0:7777` 以便手机访问，安装完成会打印 token。手机地址应填写电脑的局域网/VPN 地址，例如 `http://192.168.1.50:7777`，不能填写 `0.0.0.0`。
@@ -242,7 +249,7 @@ curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer 
 > [!CAUTION]
 > 服务不内置 TLS，不能直接暴露到公网。建议只在可信局域网、Tailscale/WireGuard 或 HTTPS 反向代理后使用。Token 持有者实际上拥有该电脑上 CodexTask 的执行权；远程 `task` 默认仍是 `danger-full-access`、可联网、`approval: never`。服务重启会丢失内存中的远程 job 查询记录，终态 job 和下载链接默认保留 24 小时；已返回的 SDK `taskId` 仍可按 CodexTask 自身状态恢复。
 
-Android Kotlin 与 iOS Swift 的完整示例在 [`examples/mobile`](./examples/mobile/README.md)：流程会先调用 `image` 生成营养餐，下载图片后调用 `text` 做图生文，再调用 `task` 修改服务器上的项目，必要时通过 `resume` 回答追问。更完整的部署、升级、卸载、JSON 字段和安全说明见[远程服务部署与移动端调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md)。
+Android Kotlin 与 iOS Swift 示例见 [`examples/mobile`](./examples/mobile/README.md)：先调用 `image` 生成营养餐，下载图片后调用 `text` 做图生文，再用 `task` 修改服务器上的项目；如果 worker 追问，就用 `resume` 回答。部署、升级、卸载、JSON 字段和安全说明见[远程服务部署与移动端调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md)。
 
 ## TypeScript API
 
@@ -288,7 +295,7 @@ stdout 默认只有一个 JSON 结果；`--stream` 时为 JSONL。诊断写 stde
 
 SDK 默认不覆写 model/reasoning，继续读取正常的 Codex 用户与项目配置。
 
-Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型。当前文本可使用 `gpt-5.6-sol + medium/high`；私有 Responses Lite 路由不暴露托管 `image_generation`，所以 Direct 图片会在请求前选择兼容的 classic `gpt-5.5`。这不代表 `gpt-5.6-sol` 没有视觉能力，只是这条非官方 Direct 生图协议不兼容。最终 JSON 始终返回真实的 `effectiveModel` 和 `reasoningEffort`。
+Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型。当前文本可使用 `gpt-5.6-sol + medium/high`；私有 Responses Lite 路由不暴露托管 `image_generation`，所以 Direct 图片会在请求前选择兼容的 classic `gpt-5.5`。`gpt-5.6-sol` 仍有视觉能力，限制来自这条非官方 Direct 生图协议。JSON 会写入实际使用的 `effectiveModel` 和 `reasoningEffort`。
 
 运行 `codex-task doctor` 可查看本机 Direct transport、OAuth、模型解析、Codex CLI/SDK 与真实数据路径，不会发送模型请求。
 

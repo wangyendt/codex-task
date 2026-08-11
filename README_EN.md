@@ -1,12 +1,12 @@
 # CodexTask
 
-> Delegate text, images, and project work to another Codex worker; get back structured text, generated images, or completed workspace changes.
+> A Codex task runner for agents and automation scripts. Send text, images, or a project directory; receive text, generated images, or workspace changes.
 
 [中文](./README.md) · [Product requirements](./docs/PRD.md) · [Remote deployment](./docs/knowhow/20260811_远程服务部署与移动端调用.md) · [Common commands](./docs/常用命令.txt) · [Companion skill](./skills/codex-task/SKILL.md)
 
-CodexTask is a lightweight, composable multimodal task runner for agent-to-agent delegation. It ships a CLI, a TypeScript API, an installable companion skill, and an optional self-hosted HTTP service—without a centralized hosted platform or an extra API key.
+CodexTask lets Codex, Claude Code, Gemini CLI, or your own program hand work to an independent Codex worker. It includes a CLI, a TypeScript API, a companion skill, and an optional self-hosted HTTP service. It reuses your existing Codex login, so there is no separate API key to configure.
 
-Choose a command by the result you want:
+Pick the command that matches the result you need:
 
 | Result | Command | Composable inputs |
 | --- | --- | --- |
@@ -27,7 +27,7 @@ npm install -g codex-task
 codex-task doctor
 ```
 
-The images and nutrition JSON below came from real CodexTask model requests; they are not placeholders or hand-written sample output. Generative results will vary between runs.
+The images and nutrition JSON below came from real CodexTask model requests. Generative results vary between runs.
 
 Generate a fitness meal image:
 
@@ -93,7 +93,7 @@ If the result is `needs_input`, answer and resume the same Codex task:
 codex-task resume 7dd7a7d7-... "Use a single serving" -f ./copy-guidelines.md -i ./expected-layout.png
 ```
 
-## Composable multimodal input
+## Combine text, files, and images
 
 The positional prompt, repeated `-f/--prompt-file`, non-empty stdin, and repeated `-i/--image` may be combined:
 
@@ -105,7 +105,7 @@ Text is composed in a stable order: positional prompt, prompt files in command-l
 
 ## Direct and SDK backends
 
-`text` and `image` default to Direct and may explicitly select `--backend sdk`. `task` and `resume` are SDK-only. CodexTask never guesses the backend.
+`text` and `image` default to Direct and may select `--backend sdk`. `task` and `resume` are SDK-only. CodexTask uses the backend you select; it does not guess.
 
 | Capability | `direct` | `sdk` |
 | --- | --- | --- |
@@ -117,7 +117,7 @@ Text is composed in a stable order: positional prompt, prompt files in command-l
 
 Direct reuses `$CODEX_HOME/auth.json`, Codex installation metadata, TLS impersonation, and the private ChatGPT Codex Responses endpoint. Inputs are still sent to ChatGPT, and the interface may change without notice. Direct cannot read a repository, run local tools, call local MCP, or use worker skills.
 
-SDK tasks default to `sandbox=danger-full-access`, `approval=never`, and `network=true`. This is intentionally powerful. Delegate only trusted prompts and projects; use `--sandbox workspace-write` or `--no-network` when needed.
+SDK tasks default to `sandbox=danger-full-access`, `approval=never`, and `network=true`. With these settings, the worker can access paths outside the workspace, run commands, and use the network without waiting for approval. Delegate only trusted prompts and projects; use `--sandbox workspace-write` or `--no-network` when needed.
 
 ## Image output
 
@@ -130,7 +130,7 @@ Image controls: `size=auto|WIDTHxHEIGHT` (longest edge ≤ 3840), `quality=auto|
 
 ## Companion skill
 
-[`skills/codex-task/SKILL.md`](./skills/codex-task/SKILL.md) teaches a calling agent how to use CodexTask. It is not injected into the underlying Codex worker. The skill and executable are separate: SkillTruck installs the skill; npm installs the CLI.
+[`skills/codex-task/SKILL.md`](./skills/codex-task/SKILL.md) teaches the calling agent how to use CodexTask. The underlying Codex worker does not load it. SkillTruck installs the skill; npm installs the CLI.
 
 ```bash
 npm install -g skilltruck codex-task
@@ -162,23 +162,25 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 ## Self-hosted service and mobile clients
 
-`codex-task serve` exposes text, image, workspace, and resume work as authenticated asynchronous HTTP jobs. Persistent services use `npm install -g codex-task@latest`, not `npx`: boot should not depend on registry availability, and the executable path should remain stable.
+`codex-task serve` exposes text, image, workspace, and resume work as authenticated asynchronous HTTP jobs. A boot service uses `npm install -g codex-task@latest` so startup does not depend on registry access and the executable path stays fixed.
 
 | Platform | Installer | Startup mechanism |
 | --- | --- | --- |
-| Ubuntu | `bash ./scripts/service/install-ubuntu.sh` | systemd user service |
-| macOS | `bash ./scripts/service/install-macos.sh` | LaunchAgent at login |
+| Ubuntu/Linux | `bash ./scripts/service/install.sh` | systemd user service |
+| macOS | `bash ./scripts/service/install.sh` | LaunchAgent at login |
 | Windows | `powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1` | Scheduled Task at login |
 
 The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, plus job polling and authenticated artifact downloads.
 
+Uninstall auto-start while preserving the global npm package and Codex data with `bash ./scripts/service/uninstall.sh` on Ubuntu/Linux/macOS, or `powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1` on Windows.
+
 The service has no built-in TLS and must not be exposed directly to the public internet. Use a trusted LAN, Tailscale/WireGuard, or an HTTPS reverse proxy. Treat the token as equivalent to the local user's CodexTask authority; remote workspace tasks still default to `danger-full-access`, network enabled, and approval `never`. Remote job polling state is in memory and is lost on service restart; terminal jobs and download URLs expire after 24 hours by default.
 
-See the complete [deployment and API guide](./docs/knowhow/20260811_远程服务部署与移动端调用.md) and the runnable [Android Kotlin and iOS Swift examples](./examples/mobile/README.md). The sample workflow calls all four operations: generate an image, analyze it as text, change a server-side project, and resume after a question.
+See the [deployment and API guide](./docs/knowhow/20260811_远程服务部署与移动端调用.md) and the [Android Kotlin and iOS Swift examples](./examples/mobile/README.md). The sample generates an image, analyzes it as text, changes a server-side project, and resumes after a question.
 
 ## Models
 
-SDK mode inherits normal Codex model and reasoning configuration unless overridden. Direct resolves explicit options, Codex config, the model cache, then a compatibility fallback. Current Direct text can use `gpt-5.6-sol` with medium or high reasoning. The private Responses Lite route does not expose hosted `image_generation`, so Direct image requests preflight to the compatible classic `gpt-5.5`. This is a limitation of the unofficial Direct image protocol, not a claim that `gpt-5.6-sol` lacks vision capability.
+SDK mode inherits the normal Codex model and reasoning configuration unless overridden. Direct checks explicit options, Codex config, the model cache, then a compatibility fallback. Direct text can use `gpt-5.6-sol` with medium or high reasoning. The private Responses Lite route does not expose hosted `image_generation`, so Direct image requests use the compatible classic `gpt-5.5`. `gpt-5.6-sol` still supports vision; the incompatibility is limited to this unofficial Direct image protocol.
 
 ## Development and releases
 
