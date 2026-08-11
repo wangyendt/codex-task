@@ -1,79 +1,100 @@
 ---
 name: codex-task
-description: Delegate a focused task to CodexTask and return structured text, generated or edited images, or completed workspace changes. Use when another Agent should call the codex-task CLI for text-to-text, text-to-image, image-to-image, or a bounded Codex workspace task, including resuming a task that needs user input.
+description: Delegate a focused task to CodexTask and return structured text, generated or edited images, or completed workspace changes. Use when another Agent should call the codex-task CLI for text-to-text, image-to-text, text-to-image, image-to-image, multimodal workspace work, or resuming a task that needs user input.
 ---
 
 # CodexTask
 
-Use the installed `codex-task` CLI as a companion tool. This skill teaches the calling Agent how to invoke the CLI; it is not injected into the Codex worker.
+Use the installed `codex-task` CLI as a companion tool. This skill teaches the calling Agent how to invoke CodexTask; it is not a skill injected into the underlying Codex worker.
 
 ## Resolve the CLI
 
-The skill and the executable are separate. Installing this skill does not install the npm package.
+The skill and executable are separate. Installing this skill does not install the npm package.
 
 1. Prefer `codex-task` when `command -v codex-task` succeeds.
-2. Otherwise, when npm and network access are available, use `npx --yes codex-task@latest` in place of `codex-task` in every command below.
-3. If neither is available, tell the user to install the unscoped package with `npm install -g codex-task`.
+2. Otherwise, when npm and network access are available, replace it with `npx --yes codex-task@latest`.
+3. If neither works, tell the user to install the unscoped package with `npm install -g codex-task`.
 
-Do not silently perform a global npm installation. The package name is `codex-task`, not `@wang121ye/codex-task`.
+Do not silently perform a global npm installation. The package is `codex-task`, not `@wang121ye/codex-task`.
 
-## Choose the command
+## Choose by the desired result
 
-- Need only a text result: run `codex-task text --backend direct`.
-- Need a new or edited image: run `codex-task image --backend direct`.
-- Need shell commands, file edits, repository work, project rules, or local tools: run `codex-task task --backend sdk`.
-- Have a prior `needs_input` result: ask the user the returned questions, then run `codex-task resume`.
+- Need text: use `codex-task text`. This covers text-to-text, image-to-text, and text-plus-image-to-text.
+- Need images: use `codex-task image`. This covers text-to-image, image-to-image, and text-plus-image-to-image.
+- Need shell commands, file changes, repository context, project rules, or local tools: use `codex-task task`.
+- Have a prior `needs_input`: relay its questions, preserve `taskId`, then use `codex-task resume`.
 
-Never send workspace work to Direct. Direct cannot run local tools, read a repository, use local MCP, or modify files.
+`text` and `image` default to Direct. Pass `--backend sdk` only when the result needs normal Codex project context or skills. `task` and `resume` are SDK-only; do not add `--backend sdk` to their normal invocation.
 
-## Invoke safely
+Direct cannot inspect a repository, execute commands, call local MCP, modify files, or use local Codex skills.
 
-Prefer stdin for long or quote-heavy prompts:
+## Compose the input
 
-```bash
-printf '%s' "$PROMPT" | codex-task text --backend direct
-```
+All result commands accept these together:
 
-For an image that must survive temporary cleanup, always pass an explicit output directory:
+- positional text;
+- repeatable `-f/--prompt-file` for long prompt files;
+- non-empty stdin;
+- repeatable `-i/--image`, up to five local images.
 
-```bash
-codex-task image "A clean technical diagram" \
-  --backend direct \
-  --output ./artifacts
-```
-
-For image-to-image, repeat `--image` up to five times:
+Use prompt files instead of shell substitution for long content. Preserve file and image order when order affects meaning.
 
 ```bash
-codex-task image "Keep the subject, change the lighting" \
-  --backend direct \
-  --image ./reference.png \
-  --output ./artifacts
+printf '%s' "$EXTRA_REQUIREMENT" | codex-task text "Analyze the meal" -f ./nutrition-rules.md -f ./allergies.md -i ./meal-front.png -i ./meal-side.png
 ```
 
-For repository work, pass the intended directory explicitly:
+## Invoke each result
+
+Generate a durable image in the current directory:
 
 ```bash
-codex-task task "Implement the requested change and run focused tests" \
-  --backend sdk \
-  --cwd /absolute/path/to/repo
+codex-task image "A clean high-protein fitness meal, top-down view"
 ```
 
-The SDK task default is `danger-full-access`, network enabled, and approval `never`. Invoke it only when the user's request authorizes the workspace task. Use `--no-followup` when the caller explicitly requires a single caller turn and accepts reasonable assumptions.
+Analyze that image as JSON text:
+
+```bash
+codex-task text "Identify foods and estimate calories; return JSON only" -i ./image-a1b2c3d4.png
+```
+
+Delegate project work with all relevant context:
+
+```bash
+codex-task task "Build the meal detail page and run focused tests" -f ./requirements.md -f ./api-contract.md -i ./meal.png --cwd /absolute/path/to/repo
+```
+
+`--cwd` is the Codex worker's current project. It determines which code, project instructions, and repo-scoped skills the worker sees, where relative paths resolve, and where commands run.
+
+If the task asks a question, resume it:
+
+```bash
+codex-task resume "$TASK_ID" "Use one serving" -f ./copy-guidelines.md -i ./expected-layout.png
+```
+
+The SDK task default is `danger-full-access`, network enabled, and approval `never`. Invoke it only when the user's request authorizes that access. Use `--sandbox workspace-write` or `--no-network` when the intended scope is narrower. Use `--no-followup` only when the caller accepts reasonable assumptions and requires completion or failure in one caller turn.
+
+## Manage image output
+
+Without `--output`, `image` writes a unique durable PNG to the current directory. Do not add `--output .` unless explicitness helps readability.
+
+- Use `-o ./artifacts` or `-o ./meal.png` for an explicit durable destination.
+- Use `--temp` only when the artifact is disposable after the current workflow. It writes under the managed OS temporary directory and can be removed by `codex-task gc`.
+- Never combine `--temp` and `--output`.
+- Add `--overwrite` only when replacing existing user data is authorized.
 
 ## Handle the result
 
-Parse stdout as JSON. Treat these statuses as follows:
+Parse stdout as JSON:
 
-- `completed`: return `text`, show or link `artifacts`, and summarize `changes` and `commands` when present.
-- `needs_input`: relay every question to the user. Preserve `taskId`; after the user answers, run `codex-task resume <taskId>` with the answer through stdin or as the argument.
-- `failed`: report `error.code` and `error.message`. Retry only when `error.retryable` is true.
-- `cancelled`: report cancellation or timeout; do not claim the task completed.
+- `completed`: return `text`, surface `artifacts`, and summarize `changes`/`commands` when present.
+- `needs_input`: ask every returned question, preserve `taskId`, then resume after receiving the answer.
+- `failed`: report `error.code` and `error.message`; retry only when `error.retryable` is true.
+- `cancelled`: report cancellation or timeout and do not claim completion.
 
-Use `--stream` only when progress events are useful. It changes stdout from one JSON object to JSONL events; it is an item/progress stream, not guaranteed token streaming.
+Use `--stream` only when JSONL progress events are useful. It is an item/task event stream, not guaranteed token streaming.
 
-## Diagnose
+## Diagnose and clean
 
-Run `codex-task doctor` when Direct authentication, native transport, model resolution, or SDK availability is uncertain. The command is read-only and does not send a model request.
+Run `codex-task doctor` when Direct authentication, native transport, model resolution, or SDK availability is uncertain. It is read-only and sends no model request.
 
-Run `codex-task gc` only to clean CodexTask-managed temporary artifacts and expired pending-task metadata. Files created under an explicit `--output` path are never managed by this cleanup.
+Run `codex-task gc` only for CodexTask-managed temporary artifacts and expired pending-task metadata. It never deletes default current-directory images or files under an explicit output path.

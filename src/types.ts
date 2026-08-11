@@ -90,19 +90,21 @@ export interface CommonOptions {
   codexHome?: string | undefined;
   signal?: AbortSignal | undefined;
   onEvent?: ((event: TaskEvent) => void) | undefined;
+  promptFiles?: string[] | undefined;
+  imagePaths?: string[] | undefined;
 }
 
 export interface TextOptions extends CommonOptions {
-  prompt: string;
+  prompt?: string | undefined;
   backend?: Backend | undefined;
   workingDirectory?: string | undefined;
 }
 
 export interface ImageOptions extends CommonOptions {
-  prompt: string;
+  prompt?: string | undefined;
   backend?: Backend | undefined;
-  imagePaths?: string[] | undefined;
   output?: string | undefined;
+  temporary?: boolean | undefined;
   count?: number | undefined;
   concurrency?: number | undefined;
   size?: string | undefined;
@@ -113,8 +115,8 @@ export interface ImageOptions extends CommonOptions {
 }
 
 export interface WorkspaceTaskOptions extends CommonOptions {
-  prompt: string;
-  backend: "sdk";
+  prompt?: string | undefined;
+  backend?: "sdk" | undefined;
   workingDirectory?: string | undefined;
   sandboxMode?: SandboxMode | undefined;
   networkAccess?: boolean | undefined;
@@ -123,7 +125,7 @@ export interface WorkspaceTaskOptions extends CommonOptions {
 
 export interface ResumeTaskOptions extends Omit<CommonOptions, "backend"> {
   taskId: string;
-  answer: string;
+  answer?: string | undefined;
   noFollowup?: boolean | undefined;
 }
 

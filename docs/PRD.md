@@ -2,153 +2,166 @@
 
 ## 1. 产品概述
 
-CodexTask 是一个轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方 Agent 通过 CLI 或 TypeScript SDK，把一个边界明确的任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更结果。
+CodexTask 是轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方通过 CLI 或 TypeScript API，把文本、图片和工作区任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更。
 
-产品提供两个显式后端：
+产品按期望结果提供四个命令：
 
-- **Direct**：复用本机 Codex OAuth，通过 ChatGPT 私有 Codex Responses 接口执行纯文本、文生图和图生图；默认后端，非官方、实验性。
-- **SDK**：通过官方 `@openai/codex-sdk` 启动 Codex CLI，执行需要 shell、文件系统、项目 rules 或本地工具的工作区任务。
+- `text`：生成文本；覆盖文生文、图生文和图文生文。
+- `image`：生成图片；覆盖文生图、图生图和图文生图。
+- `task`：通过 Codex SDK 完成工作区任务。
+- `resume`：补充信息并恢复一个 `needs_input` 任务。
 
 CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。
 
-## 2. 目标用户与核心场景
-
-### 2.1 目标用户
+## 2. 目标用户与场景
 
 - 已安装并登录 Codex 的开发者。
 - 需要让 Claude Code、Codex、Gemini CLI 等 Agent 调用另一个 Codex worker 的用户。
-- 需要统一文本生成、图片生成和轻量工作区任务接口的 TypeScript/CLI 使用者。
+- 希望用一个接口统一文本生成、图片生成和边界明确的项目任务的 TypeScript/CLI 用户。
 
-### 2.2 核心场景
+典型流程：生成健身营养餐图片；把该图与营养规则交给 `text` 取得 JSON；再把需求文件、参考图和项目目录交给 `task` 实现页面；如果 worker 追问，用 `resume` 继续同一任务。
 
-1. 调用方 Agent 请求一个独立文本结果。
-2. 调用方 Agent生成图片，或基于 1–5 张本地参考图编辑图片。
-3. 调用方 Agent 把代码/文件任务交给 Codex SDK worker。
-4. SDK worker 需要澄清时暂停，调用方取得答案后恢复同一 Codex thread。
-5. companion skill 被 SkillTruck 安装给其他 Agent，教它们正确选择 CLI 命令和后端。
+## 3. 领域术语与产品原则
 
-## 3. 产品原则
+领域术语以根目录 [`CONTEXT.md`](../CONTEXT.md) 为准。产品界面使用“期望结果”命名，不以 `t2t`、`i2t`、`t2i`、`i2i` 作为命令名，因为同一请求可以同时包含文本、文件和图片。
 
-- **轻量**：无 daemon、无内部队列、无工作流 DAG。
-- **显式**：不提供 auto backend，不静默切换后端或模型重放请求。
+- **轻量**：无 daemon、内部队列或工作流 DAG。
+- **可组合**：位置文本、多个 prompt 文件、stdin 和多张图片可以共同组成一次请求。
+- **显式**：不提供 auto backend，不在请求发出后静默切换模型重放。
 - **Agent-first**：stdout 是稳定 JSON，流式模式是 JSONL。
-- **Local-first**：复用本机 Codex 登录、配置、skills 和 session。
-- **边界清楚**：Direct 不执行本地工具；workspace task 必须显式选择 SDK。
-- **可清理**：临时图片和可恢复状态有 TTL 与容量上限。
+- **Local-first**：复用本机 Codex 登录、配置、skills 和 sessions。
+- **边界清楚**：Direct 不执行本地工具；工作区任务固定使用 SDK。
+- **持久优先**：用户请求的最终图片默认写到当前目录；只有显式 `--temp` 才是受管临时产物。
 
-## 4. 功能需求
+## 4. 输入模型
 
-### 4.1 CLI
+四种任务共享一套 Input Part：
 
 ```text
-codex-task text <prompt> [--backend direct|sdk]
-codex-task image <prompt> [--backend direct|sdk] [-i <path>...]
-codex-task task <prompt> --backend sdk [--cwd <path>]
-codex-task resume <task-id> <answer>
+[位置 prompt] + [-f prompt-file ...] + [非空 stdin] + [-i image ...]
+```
+
+- 文本组合顺序固定为：位置 prompt → prompt 文件命令行顺序 → stdin。
+- 多个 prompt 文件分别带绝对路径边界标记，防止长内容相互混淆。
+- prompt、prompt 文件和 stdin 不互斥。
+- 图片保持 `-i` 顺序；最多 5 张。
+- 至少需要一个非空文本来源；图片用于补充视觉上下文。
+- CLI 与 TypeScript API 使用相同的解析、验证和后端映射。
+
+## 5. 功能需求
+
+### 5.1 CLI
+
+```text
+codex-task text [prompt] [-f <path>...] [-i <path>...] [--backend direct|sdk]
+codex-task image [prompt] [-f <path>...] [-i <path>...] [--backend direct|sdk] [-o <path>|--temp]
+codex-task task [prompt] [-f <path>...] [-i <path>...] [--cwd <path>]
+codex-task resume <task-id> [answer] [-f <path>...] [-i <path>...]
 codex-task doctor
 codex-task gc
 codex-task skill path
 ```
 
-Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct 是默认后端；`task` 在未显式传 `--backend sdk` 时返回参数错误。
+- `text` 与 `image` 默认 Direct，也允许手动指定 SDK。
+- `task` 与 `resume` 固定使用 SDK，不在主帮助中展示 backend 选项。
+- 为兼容旧自动化，`task --backend sdk` 可继续解析；文档不再推荐。
+- 所有命令默认输出一个 JSON；`--stream` 输出 JSONL 事件。
 
-### 4.2 Public SDK
+### 5.2 TypeScript API
 
-导出：
+导出 `generateText()`、`generateImage()`、`runTask()`、`resumeTask()`、`streamTaskEvents()` 及相关配置、事件、结果和错误类型。
 
-- `generateText()`
-- `generateImage()`
-- `runTask()`
-- `resumeTask()`
-- `streamTaskEvents()`
-- 配置、事件、结果和错误类型
+公共 Options 支持 `prompt?: string`、`promptFiles?: string[]` 和 `imagePaths?: string[]`；`ImageOptions` 额外支持 `temporary?: boolean`。
 
-### 4.3 Direct 后端
+### 5.3 Direct 后端
 
 - 读取 `$CODEX_HOME/auth.json`，过期时加锁刷新并原子合并写回。
 - 使用 native libcurl impersonation、HTTP/2、Codex headers、installation identity 和 SSE。
-- 支持 classic Responses 与 Responses Lite 两套 encoder。
-- 模型解析优先级：显式参数 → 用户配置 → Codex model cache 首选 → `gpt-5.6-sol` → `gpt-5.5`。文本可使用 Responses Lite；私有 Lite 路由不支持托管 `image_generation`，图片在请求前选择 compatible classic model。
-- 默认 reasoning 为 `medium`；支持显式 `high` 等模型目录允许的档位。
-- 请求发出前可以选择兼容 encoder/fallback；请求发出后不得静默换模型重放。
-- 文本 worker 默认低冗余、single-turn、直接交付结果。
+- 文本请求可同时发送 `input_text` 和 `input_image`。
+- 支持 classic Responses 与 Responses Lite encoder。
+- 模型顺序：显式参数 → Codex config → Codex model cache → compatibility fallback。
+- 文本可使用 `gpt-5.6-sol` 与 medium/high reasoning。
+- 私有 Responses Lite 路由不暴露 hosted `image_generation`，Direct 图片在请求前选择 compatible classic `gpt-5.5`。
+- 请求发出后不得静默换模型重放，避免重复计费或副作用。
+- Direct 不读取工作区、不执行 shell、不调用本地 MCP 或 worker skills。
 
-### 4.4 SDK 后端
+### 5.4 SDK 后端与工作区
 
-- 默认 `danger-full-access`、`approval: never`、`network: true`。
-- 默认运行一个 Codex turn，不做 planning 前置阶段。
+- `task` 默认 `danger-full-access`、`approval: never`、`network: true`。
+- `--cwd` 是 worker 的 current project：Codex 从该目录读取代码、项目 rules 与 skills，并以它作为命令和相对路径的基准。
+- `task` 支持多个 prompt 文件和多张本地图片；映射为 SDK `text` 与 `local_image` 输入。
+- 默认运行一个 Codex turn，不增加 plan-before-write 阶段。
 - 使用 tagged-union output schema 返回 `completed | needs_input | failed`。
 - `needs_input` 保存 task/thread metadata，允许同机同用户跨进程恢复。
-- `--no-followup` 禁止 `needs_input`，要求采用合理假设完成或失败。
-- 收集文件变更、命令摘要、产物和 usage；不默认输出 reasoning 或完整命令日志。
+- `resume` 的补充输入同样支持文本、多个文件和多张图片。
+- `--no-followup` 禁止 `needs_input`，要求采用合理假设完成或失败；不承诺一定成功。
+- 收集文件变更、命令摘要、产物和 usage；不默认暴露 reasoning 或完整命令日志。
 
-### 4.5 图片
+### 5.5 图片
 
 - 输入格式：PNG、JPEG、WebP、GIF。
-- 参考图：0–5 张；单图不超过 20 MiB，总输入不超过 50 MiB。
-- 数量：1–10，默认 1；并发 1–3，默认 1。
-- 尺寸：`auto` 或 `WIDTHxHEIGHT`，最长边不超过 3840。
+- 参考图：0–5 张；单图 ≤ 20 MiB，总输入 ≤ 50 MiB。
+- 数量：1–10，默认 1；并发：1–3，默认 1。
+- 尺寸：`auto` 或 `WIDTHxHEIGHT`，最长边 ≤ 3840。
 - quality：`auto|low|medium|high`。
 - background：`auto|opaque|transparent`。
-- 默认不覆盖文件；`--overwrite` 显式允许。
-- 每张图片生成后立即原子落盘，批次后续失败不丢失已完成图片。
+- 默认在当前目录写入唯一文件名 `image-<task-id前8位>.png`。
+- `--output` 指定持久文件或目录；`--temp` 显式选择受管临时目录，两者互斥。
+- 默认拒绝覆盖；`--overwrite` 显式允许。
+- 每张完成后立即原子落盘，批次后续失败不丢失已完成图片。
 
-### 4.6 输出与事件
+### 5.6 输出、事件与退出码
 
-- 最终状态：`completed | needs_input | failed | cancelled`。
-- 结果至少包含 `taskId`、`backend`、`text`、`artifacts`、`effectiveModel`、`usage`；SDK 可包含 `threadId`、`changes`、`commands`、`questions`。
-- 默认 stdout 只写最终 JSON；诊断写 stderr。
-- `--stream` stdout 写 JSONL 事件：`started`、`progress`、`retrying`、`artifact`、`needs_input`、`completed`、`failed`。
+- 状态：`completed | needs_input | failed | cancelled`。
+- 结果至少包含 `taskId`、`backend` 与 `artifacts`；按能力包含 `text`、`effectiveModel`、`usage`、`threadId`、`changes`、`commands`、`questions`。
+- JSONL 事件：`started`、`progress`、`retrying`、`artifact`、`needs_input`、`completed`、`failed`。
 - exit code：完成/追问 0、运行失败 1、参数错误 2、取消/超时 130。
 
-### 4.7 状态、缓存和诊断
+### 5.7 状态、缓存和诊断
 
-- 默认图片写入 `os.tmpdir()/codex-task/<task-id>`，24 小时过期。
+- 仅 `--temp` 图片写入 `os.tmpdir()/codex-task/<task-id>`，24 小时后可清理。
+- 默认/显式持久图片属于用户数据，`gc` 不删除。
 - `needs_input` metadata 写入平台 state 目录，7 天过期。
-- 临时产物总上限 1 GiB，超过后优先删除最旧终态目录。
-- 指定 `--output` 的文件视为用户数据，不自动删除。
+- 受管临时产物总上限 1 GiB，超过后优先删除最旧终态目录。
 - 每次启动执行轻量 GC，并提供显式 `gc`。
-- `doctor` 只读检查 native transport、OAuth、模型/encoder、SDK/CLI 版本和路径，不泄露 token。
+- 官方 SDK sessions 由 Codex 保存在 `$CODEX_HOME`，CodexTask 不删除。
+- `doctor` 只读检查 transport、OAuth、模型/encoder、SDK/CLI 版本和路径，不泄露 token、不发送模型请求。
 
-### 4.8 Companion skill
+### 5.8 Companion Skill
 
-- 标准路径：`skills/codex-task/SKILL.md`。
-- plugin manifest：`.codex-plugin/plugin.json`。
-- 该 skill 只教其他 Agent 调用 CodexTask CLI，不是 worker skill。
-- npm postinstall 不静默安装；通过 SkillTruck 分发，`codex-task skill path` 返回包内路径。
+- 标准路径：`skills/codex-task/SKILL.md`；plugin manifest：`.codex-plugin/plugin.json`。
+- Skill 教其他 Agent 调用当前仓库提供的 CLI，不是 Codex worker 在任务中使用的 skill。
+- SkillTruck 安装 Skill；npm 安装 CLI。Skill 不静默全局安装 npm 包。
+- Skill 按期望结果选择命令，并明确 Direct、SDK、持久/临时输出边界。
 
-## 5. 非功能需求
+## 6. 非功能与发布需求
 
 - Node.js 20+、TypeScript、ESM-only，发布类型声明。
-- Direct native transport 是 optional dependency；不可用时 SDK 仍可安装和运行。
-- Direct text 总超时默认 10 分钟，image 每张 15 分钟，SDK task 30 分钟。
-- Direct 默认最多重试 3 次，只重试 429、5xx、连接中断和空响应。
-- 认证文件刷新必须跨进程加锁、read–merge–atomic rename。
-- 中英文 README；Direct 非官方性质和 SDK 高权限默认值必须醒目说明。
-
-## 6. 发布需求
-
-- CodexTask 首个版本为 `0.2.0`，使用无 scope npm 包 `codex-task`。
-- main 任意 push 自动 patch 版本并提交 package/lockfile。
-- lint、typecheck、unit test、build、pack check、安装/import smoke test 全部通过后才发布。
-- npm Trusted Publishing/OIDC；成功后创建 `vX.Y.Z` tag。
-- 线上 Direct E2E 永不在 CI 自动执行。
+- Direct native transport 是 optional dependency；不可用时 SDK 仍可安装。
+- Direct text 默认 10 分钟，image 每张 15 分钟，SDK task 30 分钟。
+- Direct 最多重试 3 次，只重试 429、5xx、连接中断和空响应。
+- main 任意 push 自动 patch；发布前必须通过 lint、workflow check、typecheck、test、build、pack check 和 clean install/import smoke test。
+- npm Trusted Publishing/OIDC；发布成功后创建 `vX.Y.Z` tag。
+- CI 永不自动执行真实 Direct E2E。
+- 默认中文 README，独立英文 README。
 
 ## 7. 明确不做
 
 - 常驻服务、远程执行、内部队列、DAG。
-- Direct 本地工具执行循环。
+- Direct 本地工具循环。
 - 非 Codex provider。
 - GUI/TUI。
 - 跨机器恢复。
-- 自动安装、选择或管理 Codex worker 使用的 skills。
+- 自动安装、选择或管理 worker 使用的 skills。
+- 以 `t2t/i2t/t2i/i2i` 作为公开命令。
 
-## 8. 首版验收标准
+## 8. 验收标准
 
-1. CLI 和 SDK 的 Direct 文本、Direct 图片、SDK task 均有离线测试。
-2. SDK `needs_input` 可保存并恢复；`--no-followup` 不返回追问。
-3. CLI 输出符合 JSON/JSONL 契约，exit code 稳定。
-4. 图片参数、大小、数量和覆盖保护均在请求前验证。
-5. `doctor`、`gc`、`skill path` 可用。
-6. npm tarball 只包含运行产物、skill 和必要文档，安装后可 import 并执行 `--help`。
-7. 获得授权后，手动执行一次 Direct `gpt-5.6-sol` 文本和图片 smoke test；失败时诚实记录实验性限制，不伪造通过。
+1. 四个命令共享组合输入行为，CLI 与 TypeScript API 一致。
+2. Direct 文本可接收图片；SDK text/image/task/resume 正确生成 `local_image` 输入。
+3. SDK `needs_input` 可保存并恢复；`--no-followup` 不返回追问。
+4. 图片默认落到当前目录；只有 `--temp` 是受管临时产物；二者的清理语义可验证。
+5. 图片参数、输入大小、数量和覆盖保护均在请求前验证。
+6. README、PRD、常用命令与 Skill 使用同一命令和术语。
+7. npm tarball 只包含运行产物、Skill 和必要文档，安装后可 import 并执行 `--help`。
+8. 获得授权后手动执行 Direct smoke test；失败时诚实记录实验性限制。

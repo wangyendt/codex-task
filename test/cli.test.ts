@@ -21,10 +21,29 @@ test("CLI version follows package.json", () => {
   assert.equal(output.trim(), manifest.version);
 });
 
-test("workspace task rejects the default Direct backend", () => {
-  const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", "task", "do work"], {
+test("task implies the SDK backend and exposes multimodal input options", () => {
+  const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", "task", "--help"], {
     encoding: "utf8",
   });
-  assert.equal(result.status, 2);
-  assert.match(result.stdout, /task requires explicit --backend sdk/);
+  assert.equal(result.status, 0);
+  assert.match(result.stdout, /-f, --prompt-file <path>/);
+  assert.match(result.stdout, /-i, --image <path>/);
+  assert.doesNotMatch(result.stdout, /--backend/);
+  assert.doesNotMatch(result.stdout, /--schema/);
+  assert.doesNotMatch(result.stdout, /--retries/);
+});
+
+test("text, image, and resume share composable file and image inputs", () => {
+  for (const command of ["text", "image", "resume task-id"]) {
+    const result = spawnSync(process.execPath, ["--import", "tsx", "src/cli.ts", ...command.split(" "), "--help"], {
+      encoding: "utf8",
+    });
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, /-f, --prompt-file <path>/);
+    assert.match(result.stdout, /-i, --image <path>/);
+    if (command.startsWith("resume")) {
+      assert.doesNotMatch(result.stdout, /--schema/);
+      assert.doesNotMatch(result.stdout, /--retries/);
+    }
+  }
 });

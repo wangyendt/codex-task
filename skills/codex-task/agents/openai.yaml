@@ -1,4 +1,4 @@
 interface:
   display_name: "CodexTask"
-  short_description: "Delegate text, image, and Codex workspace tasks"
+  short_description: "Delegate multimodal text, image, and workspace tasks"
   default_prompt: "Use $codex-task to delegate this task to a focused Codex worker."

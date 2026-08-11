@@ -14,7 +14,8 @@ for (const required of [
   "skills/codex-task/SKILL.md",
   "skills/codex-task/agents/openai.yaml",
   ".codex-plugin/plugin.json",
-  "README.zh-CN.md",
+  "README.md",
+  "README_EN.md",
   "THIRD_PARTY_NOTICES.md",
 ]) {
   if (!files.includes(required)) throw new Error(`npm package is missing ${required}`);

@@ -131,7 +131,7 @@ async function contextForRequest(
   };
 }
 
-export async function executeDirectText(taskId: string, options: TextOptions): Promise<DirectTextExecution> {
+export async function executeDirectText(taskId: string, options: TextOptions & { prompt: string }): Promise<DirectTextExecution> {
   const config = loadConfig({
     codexHome: options.codexHome,
     directModel: options.model,
@@ -147,6 +147,7 @@ export async function executeDirectText(taskId: string, options: TextOptions): P
     {
       kind: "text",
       prompt: options.prompt,
+      imagePaths: options.imagePaths,
       instructions: options.instructions,
       model,
       outputSchema: options.outputSchema,
@@ -163,7 +164,7 @@ export async function executeDirectText(taskId: string, options: TextOptions): P
   return { text: response.text, model, usage: response.usage };
 }
 
-export async function executeDirectImage(taskId: string, options: ImageOptions): Promise<DirectImageExecution> {
+export async function executeDirectImage(taskId: string, options: ImageOptions & { prompt: string }): Promise<DirectImageExecution> {
   const validated = validateImageOptions(options);
   const config = loadConfig({
     codexHome: options.codexHome,
@@ -226,6 +227,7 @@ export async function executeDirectImage(taskId: string, options: ImageOptions):
           index,
           validated.count,
           validated.overwrite,
+          validated.temporary,
         );
         artifacts[index] = artifact;
         emit(options.onEvent, { type: "artifact", taskId, artifact });

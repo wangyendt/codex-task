@@ -1,94 +1,151 @@
 # CodexTask
 
-> Give another AI agent a focused errand—and get back text, images, or finished work. Powered by your existing Codex setup.
+> 把文本、图片和项目任务交给另一个 Codex worker，拿回结构化文本、生成图片或已经完成的工作区变更。
 
-[中文文档](./README.zh-CN.md) · [PRD](./docs/PRD.md) · [Common commands](./docs/常用命令.txt) · [Companion skill](./skills/codex-task/SKILL.md)
+[English](./README_EN.md) · [产品需求文档](./docs/PRD.md) · [常用命令](./docs/常用命令.txt) · [Companion Skill](./skills/codex-task/SKILL.md)
 
-CodexTask turns Codex into a small, composable worker for other agents. It ships one CLI, one TypeScript API, and one installable skill for three jobs:
+CodexTask 是一个轻量、可组合的跨 Agent 多模态任务运行器。它提供一个 CLI、一个 TypeScript API 和一个可安装给其他 Agent 的 Skill；没有 daemon，没有托管服务，也不需要额外 API key。
 
-- focused text-to-text tasks;
-- text-to-image and image-to-image generation;
-- bounded workspace tasks through the official Codex SDK.
+你只需要按“想拿回什么”选择命令：
 
-No daemon. No hosted service. No extra API key. Results are stable JSON that another agent can consume.
+| 期望结果 | 命令 | 可组合输入 | 典型任务 |
+| --- | --- | --- | --- |
+| 文本 | `codex-task text` | 文本、多个 prompt 文件、最多 5 张图片、stdin | 文生文、图生文、图文生文 |
+| 图片 | `codex-task image` | 文本、多个 prompt 文件、最多 5 张参考图、stdin | 文生图、图生图、图文生图 |
+| 工作区变更 | `codex-task task` | 文本、多个 prompt 文件、最多 5 张图片、当前项目 | 写代码、改文件、运行命令 |
+| 恢复任务 | `codex-task resume` | task ID、补充文本/文件/图片 | 回答追问后继续同一个 Codex task |
 
 > [!IMPORTANT]
-> CodexTask is an independent, unofficial open-source project. It is not affiliated with, endorsed by, or sponsored by OpenAI. Codex and OpenAI are trademarks of OpenAI.
+> CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。Codex 与 OpenAI 为 OpenAI 的商标。
 
-## Quick start
+## 30 秒上手
 
-Requirements: Node.js 20+ and an existing Codex login (`codex login`).
+需要 Node.js 20+，并已执行过 `codex login`。
 
 ```bash
 npm install -g codex-task
 codex-task doctor
 ```
 
-Delegate a text result:
+下面用一次“健身营养餐”任务串起四种输出。
+
+### 1. 生成图片：一份健身营养餐
 
 ```bash
-codex-task text "Turn these notes into a crisp release announcement" \
-  --backend direct
+codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果，俯拍，食材边界清晰"
 ```
 
-Generate an image that will not be removed by temporary-file cleanup:
-
-```bash
-codex-task image "A precise exploded-view diagram of a compact robot joint" \
-  --backend direct \
-  --size 1536x1024 \
-  --quality high \
-  --output ./artifacts
-```
-
-Edit an image:
-
-```bash
-codex-task image "Keep the object; replace the background with a clean workshop" \
-  --backend direct \
-  --image ./reference.png \
-  --output ./artifacts
-```
-
-Delegate repository work:
-
-```bash
-codex-task task "Implement the requested feature and run focused tests" \
-  --backend sdk \
-  --cwd /absolute/path/to/repo
-```
-
-Every command writes a machine-readable result:
+不传 `--output` 时，最终图片默认保存在当前目录，而不是临时目录：
 
 ```json
 {
   "status": "completed",
-  "taskId": "e6fe7ed7-72de-4b27-8b6e-08152192d6cb",
+  "taskId": "a1b2c3d4-...",
   "backend": "direct",
-  "text": "...",
-  "effectiveModel": "gpt-5.6-sol",
-  "reasoningEffort": "medium",
+  "text": "Generated 1 image(s).",
+  "effectiveModel": "gpt-5.5",
+  "artifacts": [
+    { "path": "/your/project/image-a1b2c3d4.png", "kind": "image", "mimeType": "image/png" }
+  ]
+}
+```
+
+### 2. 图片 + prompt → JSON 营养分析
+
+```bash
+codex-task text "识别图中的食物，估算每项热量和总热量，只返回 JSON" -i ./image-a1b2c3d4.png
+```
+
+`text` 不只是文生文，也支持图生文和图文生文：
+
+```json
+{
+  "status": "completed",
+  "taskId": "b2c3d4e5-...",
+  "backend": "direct",
+  "text": "{\"foods\":[{\"name\":\"鸡胸肉\",\"calories\":248},{\"name\":\"糙米\",\"calories\":216},{\"name\":\"西兰花\",\"calories\":55},{\"name\":\"牛油果\",\"calories\":160}],\"totalCalories\":679}",
   "artifacts": []
 }
 ```
 
-## Pick the backend
+需要严格 JSON Schema 时可传 `--schema ./nutrition.schema.json`。
 
-CodexTask never guesses. Direct is the CLI default, but workspace tasks require an explicit SDK backend.
+### 3. 多份要求 + 参考图 → 完成项目
 
-| Capability | `direct` | `sdk` |
+```bash
+codex-task task "实现一个健身营养餐详情页，并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./image-a1b2c3d4.png --cwd ./meal-app
+```
+
+`task` 固定使用官方 Codex SDK，不需要再写 `--backend sdk`。`--cwd ./meal-app` 表示：把该目录作为 worker 的当前项目；Codex 会从这里读取代码、项目规则与 skills，并在授权范围内修改文件、执行命令。
+
+```json
+{
+  "status": "completed",
+  "taskId": "7dd7a7d7-...",
+  "backend": "sdk",
+  "threadId": "019...",
+  "text": "已实现营养餐详情页并通过相关测试。",
+  "changes": ["src/pages/MealDetail.tsx", "test/MealDetail.test.tsx"],
+  "commands": [{ "command": "npm test -- MealDetail", "exitCode": 0 }],
+  "artifacts": []
+}
+```
+
+### 4. 回答追问并继续
+
+如果任务存在关键歧义，`task` 可能返回：
+
+```json
+{
+  "status": "needs_input",
+  "taskId": "7dd7a7d7-...",
+  "questions": ["页面按单人份还是双人份展示热量？"],
+  "artifacts": []
+}
+```
+
+取得答案后，用同一个 task ID 恢复；补充回答也可以同时带多个文件和图片：
+
+```bash
+codex-task resume 7dd7a7d7-... "按单人份展示" -f ./copy-guidelines.md -i ./expected-layout.png
+```
+
+```json
+{
+  "status": "completed",
+  "taskId": "7dd7a7d7-...",
+  "backend": "sdk",
+  "text": "已按单人份完成页面和测试。",
+  "changes": ["src/pages/MealDetail.tsx"],
+  "artifacts": []
+}
+```
+
+## 组合输入，而不是四选一
+
+位置 prompt、重复的 `-f/--prompt-file`、非空 stdin 和重复的 `-i/--image` 可以同时出现：
+
+```bash
+printf '%s' "总热量控制在 700 kcal 内" | codex-task text "制定调整建议" -f ./training-goal.md -f ./allergies.md -i ./meal-front.png -i ./meal-side.png
+```
+
+CodexTask 按固定顺序组合输入：位置 prompt → prompt 文件（按命令行顺序）→ stdin；图片保持 `-i` 的顺序。文件内容会带绝对路径边界标记，避免多份长 prompt 混在一起。每张图片不超过 20 MiB，总和不超过 50 MiB。
+
+## 两种后端
+
+`text` 和 `image` 默认使用 Direct，可手动传 `--backend sdk`。`task` 和 `resume` 固定使用 SDK，不做自动猜测。
+
+| 能力 | `direct` | `sdk` |
 | --- | --- | --- |
-| Focused text result | Yes | Yes |
-| Text-to-image / image-to-image | Yes, native result extraction | Yes, via the installed `$imagegen` skill |
-| Shell and file edits | No | Yes |
-| Project rules and local tools | No | Yes |
-| Local Codex skills | No | Normal Codex discovery |
-| Transport | Unofficial ChatGPT Codex Responses | Official `@openai/codex-sdk` |
-| Stability | Experimental | Supported SDK surface |
+| 文本结果 | 支持文本与图片输入 | 支持文本与图片输入 |
+| 图片结果 | 原生提取生成图片 | 让 Codex 调用已安装的 `$imagegen` skill |
+| shell、文件修改、项目规则 | 不支持 | 支持 |
+| 本地 Codex skills | 不支持 | 按 Codex 正常发现 |
+| 底层 | 非官方 ChatGPT Codex Responses | 官方 `@openai/codex-sdk` |
 
-Direct reuses `$CODEX_HOME/auth.json`, Codex installation metadata, TLS impersonation, and the private ChatGPT Codex Responses endpoint. Inputs are still sent to ChatGPT. The interface may change without notice.
+Direct 复用 `$CODEX_HOME/auth.json`、Codex installation metadata、TLS impersonation 和 ChatGPT 私有 Codex Responses 接口。输入仍会发往 ChatGPT，接口可能随时变化。Direct 只返回生成结果，不能读项目、运行 shell、调用本地 MCP 或使用 worker skills。
 
-The SDK backend defaults to:
+SDK task 默认权限为：
 
 ```text
 sandbox: danger-full-access
@@ -96,178 +153,101 @@ approval: never
 network: true
 ```
 
-That combination is intentionally powerful: it can read and write outside the workspace, execute commands, and use the network without asking for approval. Only delegate trusted prompts and repositories.
+这意味着 worker 可以访问工作区外路径、执行命令并联网，而且不会等待权限确认。只委派可信 prompt 和可信项目；需要收窄时显式传 `--sandbox workspace-write` 或 `--no-network`。
 
-## Agent follow-ups
+## 图片输出与临时文件
 
-SDK tasks are single-turn first. If the worker needs clarification, the result is not an error:
-
-```json
-{
-  "status": "needs_input",
-  "taskId": "...",
-  "threadId": "...",
-  "questions": ["Should the API preserve the legacy response shape?"],
-  "artifacts": []
-}
-```
-
-Ask the user, then resume the same Codex thread:
+- 默认：在当前目录生成唯一文件名，例如 `./image-a1b2c3d4.png`；这是持久用户文件，`gc` 不会删除。
+- 指定位置：传 `-o ./artifacts` 或 `-o ./meal.png`。
+- 临时产物：显式传 `--temp`，写入 `os.tmpdir()/codex-task/<task-id>`，24 小时后可被清理。
+- `--temp` 与 `--output` 互斥；已有目标默认拒绝覆盖，只有 `--overwrite` 才允许替换。
 
 ```bash
-printf '%s' "Yes, preserve it." | codex-task resume <task-id>
+codex-task image "生成三个便当配色方案" -n 3 -o ./artifacts
+codex-task image "仅供本轮分析的草图" --temp
+codex-task gc
 ```
 
-Pass `--no-followup` to require reasonable assumptions and a completed/failed result in one caller turn. It does not guarantee the model succeeds.
+图片参数：`size=auto|WIDTHxHEIGHT`（最长边 ≤ 3840）、`quality=auto|low|medium|high`、`background=auto|opaque|transparent`、`count=1–10`、`concurrency=1–3`。
 
-## Use from another agent
+## 安装给其他 Agent
 
-This repository ships `skills/codex-task/SKILL.md`. It teaches a calling agent when to choose text, image, task, or resume. It is a companion skill, not a skill injected into the Codex worker.
+仓库内置 [`skills/codex-task/SKILL.md`](./skills/codex-task/SKILL.md)。它教调用方 Agent 何时运行 `text`、`image`、`task` 或 `resume`；它不是注入底层 Codex worker 的 skill。
 
-Install it with [SkillTruck](https://github.com/wangyendt/skilltruck):
+Skill 和 CLI 是两件事：SkillTruck 负责安装 Skill，npm 负责安装可执行命令。安装 Skill 不会自动全局安装 npm 包。
 
 ```bash
-npm install -g skilltruck
+npm install -g skilltruck codex-task
 skilltruck install https://github.com/wangyendt/codex-task --global
 ```
 
-Or locate the copy included in the npm package:
-
-```bash
-codex-task skill path
-```
-
-The repository also includes `.codex-plugin/plugin.json` for plugin-compatible distribution.
+如果不想全局安装 CLI，Agent 可回退到 `npx --yes codex-task@latest`。也可以运行 `codex-task skill path` 查看 npm 包内 Skill 的位置。
 
 ## TypeScript API
 
 ```ts
 import { generateImage, generateText, runTask } from "codex-task";
 
-const copy = await generateText({
-  prompt: "Write a launch headline and three supporting bullets.",
-  backend: "direct",
+const meal = await generateImage({
+  prompt: "生成一份高蛋白健身营养餐",
+  output: ".",
 });
 
-const image = await generateImage({
-  prompt: "A restrained isometric illustration of agent-to-agent delegation.",
-  backend: "direct",
-  output: "./artifacts",
-  quality: "high",
+const analysis = await generateText({
+  prompt: "识别食物并估算热量，只返回 JSON",
+  promptFiles: ["./nutrition-rules.md", "./allergies.md"],
+  imagePaths: [meal.artifacts[0]!.path],
 });
 
 const work = await runTask({
-  prompt: "Add the feature and run focused tests.",
-  backend: "sdk",
-  workingDirectory: "/absolute/path/to/repo",
+  prompt: "根据要求实现营养餐详情页并测试",
+  promptFiles: ["./requirements.md", "./api-contract.md"],
+  imagePaths: [meal.artifacts[0]!.path],
+  workingDirectory: "./meal-app",
 });
 ```
 
-For progress events:
+`streamTaskEvents()` 可输出 JSONL 级别的 item/task 进度，但不保证逐 token 流式输出。
 
-```ts
-import { streamTaskEvents } from "codex-task";
+## 输出、状态与退出码
 
-for await (const event of streamTaskEvents({
-  kind: "text",
-  options: { prompt: "Summarize this decision", backend: "direct" },
-})) {
-  console.log(event);
-}
-```
+stdout 默认只有一个 JSON 结果；`--stream` 时为 JSONL。诊断写 stderr。
 
-The event stream reports item and task progress; it is not guaranteed token streaming.
-
-## Image controls
-
-```text
-references   0–5 local PNG/JPEG/WebP/GIF files
-size         auto or WIDTHxHEIGHT; longest edge ≤ 3840
-quality      auto | low | medium | high
-background   auto | opaque | transparent
-count        1–10
-concurrency  1–3, default 1
-```
-
-Each reference may be at most 20 MiB, with a 50 MiB combined limit. Existing outputs are rejected unless `--overwrite` is supplied. Completed images are atomically saved immediately, so a later batch failure does not discard earlier artifacts.
-
-## Inputs and output
-
-Long prompts can come from a file or stdin:
-
-```bash
-codex-task text --prompt-file task.md --backend direct
-printf '%s' "$PROMPT" | codex-task task --backend sdk --cwd .
-```
-
-The positional prompt, `--prompt-file`, and stdin are mutually exclusive.
-
-Default stdout is one JSON result. `--stream` switches stdout to JSONL events. Diagnostics go to stderr. Exit codes are:
-
-| Code | Meaning |
+| 状态/退出码 | 含义 |
 | --- | --- |
-| `0` | `completed` or `needs_input` |
-| `1` | execution failure |
-| `2` | invalid arguments or configuration |
-| `130` | cancellation or timeout |
+| `completed` / `0` | 完成 |
+| `needs_input` / `0` | 等待调用方补充输入，可 `resume` |
+| `failed` / `1` | 执行失败 |
+| 参数错误 / `2` | 输入或配置无效 |
+| `cancelled` / `130` | 取消或超时 |
 
-## Models and configuration
+`--no-followup` 会要求 SDK worker 采用合理假设并在当前 caller turn 内完成或失败，但不能保证模型一定成功。
 
-The SDK backend leaves model and reasoning unset unless you override them, allowing normal Codex configuration discovery.
+## 模型与配置
 
-Direct resolves its model in this order:
+SDK 默认不覆写 model/reasoning，继续读取正常的 Codex 用户与项目配置。
 
-1. `--model` / API option;
-2. Codex `config.toml`;
-3. the preferred visible model in `models_cache.json`;
-4. compatibility fallback.
+Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型。当前文本可使用 `gpt-5.6-sol + medium/high`；私有 Responses Lite 路由不暴露托管 `image_generation`，所以 Direct 图片会在请求前选择兼容的 classic `gpt-5.5`。这不代表 `gpt-5.6-sol` 没有视觉能力，只是这条非官方 Direct 生图协议不兼容。最终 JSON 始终返回真实的 `effectiveModel` 和 `reasoningEffort`。
 
-It supports classic Responses and Responses Lite encoders. With a current Codex model catalog, text defaults to `gpt-5.6-sol` with `medium` reasoning. The private Responses Lite route rejects hosted `image_generation`, so Direct image requests are preflighted to the compatible classic `gpt-5.5` model before any request is sent. The final JSON always reports `effectiveModel` and `reasoningEffort`.
+运行 `codex-task doctor` 可查看本机 Direct transport、OAuth、模型解析、Codex CLI/SDK 与真实数据路径，不会发送模型请求。
 
-Configuration precedence is API/CLI → `CODEX_TASK_*` environment variables → user config → Codex config → fallback. The user config is `config.json` under the standard platform config directory; run `codex-task doctor` to see the exact path.
-
-For migration, `CODEXERRAND_*` variables and the former CodexErrand config/task paths are recognized only when their `CODEX_TASK_*` or CodexTask equivalents are absent. New state is always written under CodexTask paths.
-
-Useful variables include:
-
-```text
-CODEX_TASK_MODEL
-CODEX_TASK_REASONING
-CODEX_TASK_PROXY
-CODEX_TASK_CODEX_HOME
-CODEX_TASK_TEXT_TIMEOUT_MS
-CODEX_TASK_IMAGE_TIMEOUT_MS
-CODEX_TASK_SDK_TIMEOUT_MS
-CODEX_TASK_RETRIES
-```
-
-## Temporary data
-
-- Images without `--output` live under the platform temporary directory and expire after 24 hours.
-- Pending `needs_input` metadata lives under the platform state directory and expires after 7 days.
-- Managed temporary artifacts are capped at 1 GiB.
-- Explicit output paths are user data and are never removed by `codex-task gc`.
-- Official SDK sessions remain managed by Codex under `$CODEX_HOME`; CodexTask does not delete them.
-
-## Development and releases
+## 开发与发布
 
 ```bash
 npm install
 npm run verify
 ```
 
-`npm run verify` runs lint, type checking, unit tests, build, package inspection, and a clean install/import smoke test. Live Direct endpoint tests are opt-in and never run in CI:
+`verify` 会执行 lint、workflow 检查、类型检查、单元测试、构建、npm 包内容检查和干净安装/import smoke test。真实 Direct endpoint 测试只允许手动执行：
 
 ```bash
 RUN_DIRECT_E2E=1 npm run test:e2e
 ```
 
-Every push to `main` triggers an automatic patch bump. A second workflow verifies the package, publishes through npm Trusted Publishing, and creates a `vX.Y.Z` tag. Repository setup is documented in [Release setup](./docs/RELEASING.md).
+每次 push 到 `main` 都会自动发布 patch 版本，详见[发布配置](./docs/RELEASING.md)。
 
-## Acknowledgements
+## 致谢与许可
 
-The Direct backend is derived in part from the MIT-licensed [`lawrencewzen/imgen`](https://github.com/lawrencewzen/imgen). See [third-party notices](./THIRD_PARTY_NOTICES.md).
-
-## License
+Direct 后端部分技术与 MIT 代码源自 [`lawrencewzen/imgen`](https://github.com/lawrencewzen/imgen)，详见[第三方声明](./THIRD_PARTY_NOTICES.md)。
 
 MIT © 2026 ye.wang

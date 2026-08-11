@@ -4,6 +4,7 @@ import { Command, Option } from "commander";
 import { dispatch, streamTaskEvents } from "./api.js";
 import { runDoctor } from "./doctor.js";
 import { asCodexTaskError, usageError } from "./errors.js";
+import { resolveTaskInput, type ResolvedTaskInput } from "./inputs.js";
 import { companionSkillPath } from "./skill.js";
 import { runGarbageCollection } from "./state.js";
 import type {
@@ -16,7 +17,8 @@ import type {
 } from "./types.js";
 
 interface PromptFlags {
-  promptFile?: string;
+  promptFile?: string[];
+  image?: string[];
 }
 
 interface PackageManifest {
@@ -24,7 +26,7 @@ interface PackageManifest {
 }
 
 interface CommonFlags extends PromptFlags {
-  backend: Backend;
+  backend?: Backend;
   model?: string;
   reasoning?: ReasoningEffort;
   instructions?: string;
@@ -34,6 +36,11 @@ interface CommonFlags extends PromptFlags {
   retries?: string;
   codexHome?: string;
   stream?: boolean;
+}
+
+interface CommonFeatureOptions {
+  schema?: boolean;
+  retries?: boolean;
 }
 
 function collect(value: string, previous: string[]): string[] {
@@ -56,13 +63,14 @@ async function readStdin(): Promise<string> {
   return Buffer.concat(chunks).toString("utf8");
 }
 
-async function resolvePrompt(positional: string | undefined, flags: PromptFlags): Promise<string> {
-  const sources = Number(positional !== undefined) + Number(flags.promptFile !== undefined) + Number(!process.stdin.isTTY);
-  if (sources === 0) throw usageError("provide a prompt argument, --prompt-file, or stdin");
-  if (sources > 1) throw usageError("prompt argument, --prompt-file, and stdin are mutually exclusive");
-  const prompt = positional ?? (flags.promptFile ? readFileSync(flags.promptFile, "utf8") : await readStdin());
-  if (!prompt.trim()) throw usageError("prompt must not be empty");
-  return prompt;
+async function resolveCliInput(positional: string | undefined, flags: PromptFlags): Promise<ResolvedTaskInput> {
+  const stdin = process.stdin.isTTY ? undefined : await readStdin();
+  return resolveTaskInput({
+    prompt: positional,
+    promptFiles: flags.promptFile,
+    stdin,
+    imagePaths: flags.image,
+  });
 }
 
 function durationMs(value: string | undefined): number | undefined {
@@ -97,7 +105,7 @@ function instructions(flags: CommonFlags): string | undefined {
   return flags.instructions ?? (flags.instructionsFile ? readFileSync(flags.instructionsFile, "utf8") : undefined);
 }
 
-function common(flags: CommonFlags): {
+function common(flags: CommonFlags, backend: Backend): {
   backend: Backend;
   model?: string | undefined;
   reasoning?: ReasoningEffort | undefined;
@@ -108,7 +116,7 @@ function common(flags: CommonFlags): {
   codexHome?: string | undefined;
 } {
   return {
-    backend: flags.backend,
+    backend: flags.backend ?? backend,
     model: flags.model,
     reasoning: flags.reasoning,
     instructions: instructions(flags),
@@ -119,10 +127,19 @@ function common(flags: CommonFlags): {
   };
 }
 
-function addCommonOptions(command: Command, defaultBackend: Backend): Command {
-  return command
-    .addOption(new Option("--backend <backend>", "execution backend").choices(["direct", "sdk"]).default(defaultBackend))
-    .option("--prompt-file <path>", "read prompt from a UTF-8 file")
+function addCommonOptions(
+  command: Command,
+  defaultBackend?: Backend,
+  features: CommonFeatureOptions = {},
+): Command {
+  let configured = defaultBackend
+    ? command.addOption(
+        new Option("--backend <backend>", "execution backend").choices(["direct", "sdk"]).default(defaultBackend),
+      )
+    : command.addOption(new Option("--backend <backend>").choices(["sdk"]).hideHelp());
+  configured = configured
+    .option("-f, --prompt-file <path>", "append a UTF-8 prompt file; repeatable", collect, [])
+    .option("-i, --image <path>", "attach a local image; repeat up to five times", collect, [])
     .option("--model <model>", "model override")
     .addOption(
       new Option("--reasoning <effort>", "reasoning effort").choices([
@@ -136,10 +153,11 @@ function addCommonOptions(command: Command, defaultBackend: Backend): Command {
       ]),
     )
     .option("--instructions <text>", "additional worker instructions")
-    .option("--instructions-file <path>", "read additional instructions from a file")
-    .option("--schema <path>", "JSON Schema for the final text response")
-    .option("--timeout <duration>", "timeout, for example 30s, 10m, or 1h")
-    .option("--retries <count>", "Direct transient retries")
+    .option("--instructions-file <path>", "read additional instructions from a file");
+  if (features.schema) configured = configured.option("--schema <path>", "JSON Schema for the final text response");
+  configured = configured.option("--timeout <duration>", "timeout, for example 30s, 10m, or 1h");
+  if (features.retries) configured = configured.option("--retries <count>", "Direct transient retries");
+  return configured
     .option("--codex-home <path>", "Codex home directory")
     .option("--stream", "emit JSONL progress events");
 }
@@ -175,18 +193,22 @@ program
   .description("Unofficial agent-to-agent text, image, and workspace task runner for Codex")
   .version(packageVersion());
 
-addCommonOptions(program.command("text [prompt]").description("generate a focused text result"), "direct").action(
+addCommonOptions(program.command("text [prompt]").description("generate a focused text result"), "direct", {
+  schema: true,
+  retries: true,
+}).action(
   async (prompt: string | undefined, flags: CommonFlags) => {
+    const input = await resolveCliInput(prompt, flags);
     await execute(
-      { kind: "text", options: { ...common(flags), prompt: await resolvePrompt(prompt, flags) } },
+      { kind: "text", options: { ...common(flags, "direct"), prompt: input.text, imagePaths: input.imagePaths } },
       flags.stream ?? false,
     );
   },
 );
 
-addCommonOptions(program.command("image [prompt]").description("generate or edit images"), "direct")
-  .option("-i, --image <path>", "reference image; repeat up to five times", collect, [])
+addCommonOptions(program.command("image [prompt]").description("generate or edit images"), "direct", { retries: true })
   .option("-o, --output <path>", "PNG file or output directory")
+  .option("--temp", "store output under the managed temporary directory")
   .option("-n, --count <count>", "number of images", "1")
   .option("--concurrency <count>", "parallel image requests", "1")
   .option("--size <size>", "auto or WIDTHxHEIGHT", "auto")
@@ -197,11 +219,13 @@ addCommonOptions(program.command("image [prompt]").description("generate or edit
   .option("--overwrite", "replace existing output files")
   .option("--cwd <path>", "working directory for SDK image generation")
   .action(async (prompt: string | undefined, flags: CommonFlags & Record<string, unknown>) => {
+    const input = await resolveCliInput(prompt, flags);
     const options: ImageOptions = {
-      ...common(flags),
-      prompt: await resolvePrompt(prompt, flags),
-      imagePaths: flags["image"] as string[],
+      ...common(flags, "direct"),
+      prompt: input.text,
+      imagePaths: input.imagePaths,
       output: flags["output"] as string | undefined,
+      temporary: (flags["temp"] as boolean | undefined) ?? false,
       count: integer(flags["count"] as string, "count"),
       concurrency: integer(flags["concurrency"] as string, "concurrency"),
       size: flags["size"] as string,
@@ -213,7 +237,7 @@ addCommonOptions(program.command("image [prompt]").description("generate or edit
     await execute({ kind: "image", options }, flags.stream ?? false);
   });
 
-addCommonOptions(program.command("task [prompt]").description("run a Codex workspace task"), "direct")
+addCommonOptions(program.command("task [prompt]").description("run a Codex workspace task"))
   .option("--cwd <path>", "working directory", process.cwd())
   .addOption(
     new Option("--sandbox <mode>", "sandbox mode")
@@ -223,14 +247,15 @@ addCommonOptions(program.command("task [prompt]").description("run a Codex works
   .option("--no-network", "disable network access")
   .option("--no-followup", "forbid needs_input; complete or fail in one caller turn")
   .action(async (prompt: string | undefined, flags: CommonFlags & Record<string, unknown>) => {
-    if (flags.backend !== "sdk") throw usageError("task requires explicit --backend sdk");
+    const input = await resolveCliInput(prompt, flags);
     await execute(
       {
         kind: "task",
         options: {
-          ...common(flags),
+          ...common(flags, "sdk"),
           backend: "sdk",
-          prompt: await resolvePrompt(prompt, flags),
+          prompt: input.text,
+          imagePaths: input.imagePaths,
           workingDirectory: flags["cwd"] as string,
           sandboxMode: flags["sandbox"] as SandboxMode,
           networkAccess: (flags["network"] as boolean | undefined) ?? true,
@@ -241,16 +266,18 @@ addCommonOptions(program.command("task [prompt]").description("run a Codex works
     );
   });
 
-addCommonOptions(program.command("resume <task-id> [answer]").description("resume a task awaiting input"), "sdk")
+addCommonOptions(program.command("resume <task-id> [answer]").description("resume a task awaiting input"))
   .option("--no-followup", "forbid another needs_input result")
   .action(async (taskId: string, answer: string | undefined, flags: CommonFlags & Record<string, unknown>) => {
+    const input = await resolveCliInput(answer, flags);
     await execute(
       {
         kind: "resume",
         options: {
-          ...common(flags),
+          ...common(flags, "sdk"),
           taskId,
-          answer: await resolvePrompt(answer, flags),
+          answer: input.text,
+          imagePaths: input.imagePaths,
           noFollowup: (flags["followup"] as boolean | undefined) === false,
         },
       },

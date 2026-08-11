@@ -1,6 +1,13 @@
 import assert from "node:assert/strict";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
-import { buildDirectRequest, type DirectRequestContext } from "../src/backends/direct/protocol.js";
+import {
+  buildDirectRequest,
+  type DirectRequestContext,
+  type DirectRequestSpec,
+} from "../src/backends/direct/protocol.js";
 import type { ResolvedDirectModel } from "../src/backends/direct/models.js";
 
 const context: DirectRequestContext = {
@@ -45,4 +52,26 @@ test("lite request prefixes additional_tools and developer instructions", () => 
   assert.equal(input[0]?.["type"], "additional_tools");
   assert.equal(input[1]?.["role"], "developer");
   assert.equal((request.body["reasoning"] as Record<string, unknown>)["context"], "all_turns");
+});
+
+test("text request sends local images as multimodal input", () => {
+  const root = mkdtempSync(join(tmpdir(), "codex-task-protocol-test-"));
+  const image = join(root, "meal.png");
+  try {
+    writeFileSync(image, "image-bytes");
+    const spec = {
+      kind: "text",
+      prompt: "Extract foods and calories as JSON.",
+      imagePaths: [image],
+      model: model(true),
+    } as DirectRequestSpec;
+    const request = buildDirectRequest(context, spec);
+    const input = request.body["input"] as Array<Record<string, unknown>>;
+    const userMessage = input.find((item) => item["role"] === "user");
+    const content = userMessage?.["content"] as Array<Record<string, unknown>>;
+    assert.deepEqual(content.map((item) => item["type"]), ["input_text", "input_image"]);
+    assert.equal(content[1]?.["image_url"], `data:image/png;base64,${Buffer.from("image-bytes").toString("base64")}`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

@@ -1,7 +1,7 @@
 {
   "name": "codex-task",
   "version": "0.2.2",
-  "description": "Delegate focused text, image, and workspace tasks to CodexTask",
+  "description": "Delegate multimodal text, image, and workspace tasks to CodexTask",
   "author": {
     "name": "wang121ye",
     "url": "https://github.com/wangyendt"
@@ -18,8 +18,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "CodexTask",
-    "shortDescription": "Delegate text, image, and workspace tasks",
-    "longDescription": "A companion skill for routing focused text, image, and workspace tasks through the CodexTask CLI.",
+    "shortDescription": "Delegate multimodal text, image, and workspace tasks",
+    "longDescription": "A companion skill for routing composable text, image, and workspace inputs through the CodexTask CLI.",
     "developerName": "wang121ye",
     "category": "Developer Tools",
     "capabilities": [

@@ -1,20 +1,16 @@
 # CodexTask 常用命令：每条命令均为可直接复制执行的单行命令。
 
-# === 安装与升级：全局安装后，Agent 和终端都可以直接调用 codex-task。 ===
+# === 安装与升级：SkillTruck 安装 Skill；npm 安装真正执行任务的 CLI。 ===
 npm install -g codex-task
+npm install -g skilltruck
+skilltruck install https://github.com/wangyendt/codex-task --global
 codex-task --version
 npm install -g codex-task@latest
 npm uninstall -g codex-task
-npx --yes codex-task@latest --version
 npx --yes codex-task@latest doctor
-
-# === Companion Skill：SkillTruck 负责把 CodexTask Skill 安装给其他 Agent；Skill 本身不会安装 CLI。 ===
-npm install -g skilltruck
-skilltruck install https://github.com/wangyendt/codex-task --global
-npm install -g codex-task
 codex-task skill path
 
-# === 诊断与清理：检查运行环境、查看帮助并清理过期任务数据。 ===
+# === 诊断与帮助：doctor 不发送模型请求。 ===
 codex-task doctor
 codex-task gc
 codex-task --help
@@ -23,43 +19,47 @@ codex-task image --help
 codex-task task --help
 codex-task resume --help
 
-# === 文生文（Direct）：适合不需要本地文件或工具的独立文本任务。 ===
-codex-task text "把下面的内容整理成简洁的发布公告" --backend direct
-codex-task text --prompt-file ./task.md --backend direct
-printf '%s' "$PROMPT" | codex-task text --backend direct
-codex-task text "分析这个方案的主要风险" --backend direct --model gpt-5.6-sol --reasoning high
-codex-task text "生成一份迁移方案" --backend direct --stream
+# === 图片结果：文生图、图生图、图文生图都使用 image。默认输出到当前目录。 ===
+codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果，俯拍，食材边界清晰"
+codex-task image "把餐盘调整成高蛋白低脂版本" -i ./meal.png
+codex-task image "结合两张参考图的摆盘和配色" -i ./layout.png -i ./palette.png -f ./nutrition-rules.md -o ./artifacts
+codex-task image "生成三个不同摆盘方案" -f ./meal-brief.md -f ./brand-style.md -n 3 --concurrency 2 -o ./artifacts
+codex-task image "透明背景的食材图标" --size 1024x1024 --quality high --background transparent -o ./food-icon.png
+codex-task image "仅供当前流程分析的草图" --temp
 
-# === 文生图（Direct）：生成图片并保存到指定目录。 ===
-codex-task image "一张简洁、精确的机器人关节爆炸图" --backend direct --output ./artifacts
-codex-task image "透明背景的产品图标" --backend direct --output ./artifacts --size 1024x1024 --quality high --background transparent
-codex-task image "未来主义工具箱概念图" --backend direct --output ./artifacts --count 4 --concurrency 2
+# === 文本结果：文生文、图生文、图文生文都使用 text。 ===
+codex-task text "把以下营养建议整理成三条要点"
+codex-task text "识别图中的食物，估算每项热量和总热量，只返回 JSON" -i ./meal.png
+codex-task text "比较两份餐食的蛋白质、碳水和总热量" -i ./meal-a.png -i ./meal-b.png
+codex-task text "制定一周饮食调整建议" -f ./training-goal.md -f ./allergies.md -i ./meal.png
+printf '%s' "总热量控制在 700 kcal 内" | codex-task text "给出调整建议" -f ./training-goal.md -i ./meal.png
+codex-task text "分析方案风险" --model gpt-5.6-sol --reasoning high
+codex-task text "生成迁移方案" --stream
 
-# === 图生图（Direct）：使用一至五张本地参考图编辑图片。 ===
-codex-task image "保留主体，把背景改成整洁的摄影棚" --backend direct --image ./reference.png --output ./artifacts
-codex-task image "使用第一张的主体和第二张的配色" --backend direct --image ./subject.png --image ./style.png --output ./artifacts
+# === 工作区结果：task 固定使用 SDK；cwd 是 Codex 读取和修改的当前项目。 ===
+codex-task task "实现健身营养餐详情页并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./meal.png --cwd ./meal-app
+codex-task task "按现有项目约定修复这个问题" -f ./bug-report.md -i ./screenshot.png --cwd /absolute/path/to/repository --no-followup
+codex-task task "整理本地代码，不访问网络" --cwd /absolute/path/to/repository --no-network
+codex-task task "只修改当前工作区并测试" --cwd /absolute/path/to/repository --sandbox workspace-write
 
-# === Workspace Task（SDK）：让 Codex 在指定工作区执行文件和代码任务。 ===
-codex-task task "实现该功能并运行相关测试" --backend sdk --cwd /absolute/path/to/repository
-codex-task task "按现有项目约定修复这个问题" --backend sdk --cwd /absolute/path/to/repository --no-followup
-codex-task task "整理本地代码，不访问网络" --backend sdk --cwd /absolute/path/to/repository --no-network
-codex-task task "修改当前项目并测试" --backend sdk --cwd /absolute/path/to/repository --sandbox workspace-write
+# === 恢复任务：task 返回 needs_input 后，用 taskId 补充文本、文件或图片。 ===
+codex-task resume "$TASK_ID" "按单人份展示热量"
+codex-task resume "$TASK_ID" "继续完成" -f ./copy-guidelines.md -i ./expected-layout.png
+printf '%s' "这是用户补充的完整要求" | codex-task resume "$TASK_ID" -f ./acceptance.md
 
-# === 恢复任务：task 返回 needs_input 和 taskId 后，向同一 Codex thread 补充答案。 ===
-codex-task resume "$TASK_ID" "是，必须保持向后兼容"
-printf '%s' "这是用户补充的完整要求" | codex-task resume "$TASK_ID"
+# === 显式选择 SDK 生成纯文本或图片；Direct 仍是 text/image 默认后端。 ===
+codex-task text "读取当前项目规则后总结设计" --backend sdk
+codex-task image "按项目品牌规则生成营养餐封面" --backend sdk --cwd ./meal-app -o ./artifacts
 
-# === TypeScript SDK：在应用项目中安装 CodexTask SDK。 ===
+# === TypeScript SDK 与本地开发。 ===
 npm install codex-task
-
-# === 本地开发：安装依赖并运行质量门禁、测试和构建。 ===
 npm install
 npm run verify
 npm test
 npm run build
 git status --short --branch
 
-# === npm 与 GitHub 发布检查：查看线上版本、provenance 和 Actions 配置。 ===
+# === npm 与 GitHub 发布检查。 ===
 npm view codex-task version
 cd /tmp && npx --yes codex-task@latest --version
 gh run list --repo wangyendt/codex-task

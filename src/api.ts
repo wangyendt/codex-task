@@ -1,7 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { existsSync, statSync } from "node:fs";
 import { dirname, extname, isAbsolute } from "node:path";
-import type { Input } from "@openai/codex-sdk";
 import { executeDirectImage, executeDirectText } from "./backends/direct/index.js";
 import { buildWorkspacePrompt, resolveWorkingDirectory, runSdkTurn, type SdkExecution } from "./backends/sdk.js";
 import { loadConfig } from "./config.js";
@@ -9,6 +8,7 @@ import { asCodexTaskError, CodexTaskError, isAbortError, usageError } from "./er
 import { EventQueue } from "./events.js";
 import { ensureDir } from "./fs-utils.js";
 import { outputPathForImage, validateImageOptions } from "./images.js";
+import { resolveTaskInput, toSdkInput } from "./inputs.js";
 import { deletePendingTask, loadPendingTask, runGarbageCollection, savePendingTask } from "./state.js";
 import type {
   Artifact,
@@ -104,8 +104,10 @@ export async function generateText(options: TextOptions): Promise<TaskResult> {
   const backend = options.backend ?? "direct";
   emit(options.onEvent, { type: "started", taskId, backend, kind: "text" });
   try {
+    const input = resolveTaskInput(options);
+    const normalized = { ...options, prompt: input.text, imagePaths: input.imagePaths };
     if (backend === "direct") {
-      const execution = await executeDirectText(taskId, options);
+      const execution = await executeDirectText(taskId, normalized);
       return finalize(options.onEvent, {
         status: "completed",
         taskId,
@@ -118,13 +120,14 @@ export async function generateText(options: TextOptions): Promise<TaskResult> {
       });
     }
     const config = loadConfig({ sdkTimeoutMs: options.timeoutMs, codexHome: options.codexHome });
-    const structuredResponse = options.outputSchema === undefined;
+    const structuredResponse = normalized.outputSchema === undefined;
+    const text = structuredResponse
+      ? buildWorkspacePrompt(input.text, normalized.instructions, true)
+      : [normalized.instructions, input.text].filter(Boolean).join("\n\n");
     const execution = await runSdkTurn({
       taskId,
-      prompt: structuredResponse
-        ? buildWorkspacePrompt(options.prompt, options.instructions, true)
-        : [options.instructions, options.prompt].filter(Boolean).join("\n\n"),
-      workingDirectory: resolveWorkingDirectory(options.workingDirectory),
+      prompt: toSdkInput({ text, imagePaths: input.imagePaths }),
+      workingDirectory: resolveWorkingDirectory(normalized.workingDirectory),
       sandboxMode: "danger-full-access",
       networkAccess: true,
       noFollowup: true,
@@ -148,8 +151,10 @@ export async function generateImage(options: ImageOptions): Promise<TaskResult> 
   const backend = options.backend ?? "direct";
   emit(options.onEvent, { type: "started", taskId, backend, kind: "image" });
   try {
+    const input = resolveTaskInput(options);
+    const normalized = { ...options, prompt: input.text, imagePaths: input.imagePaths };
     if (backend === "direct") {
-      const execution = await executeDirectImage(taskId, options);
+      const execution = await executeDirectImage(taskId, normalized);
       return finalize(options.onEvent, {
         status: "completed",
         taskId,
@@ -161,17 +166,17 @@ export async function generateImage(options: ImageOptions): Promise<TaskResult> 
         usage: execution.usage,
       });
     }
-    const execution = await executeSdkImage(taskId, options);
+    const execution = await executeSdkImage(taskId, normalized);
     return finalize(options.onEvent, completedFromSdk(taskId, execution, options.model));
   } catch (error) {
     return finalize(options.onEvent, failedResult(taskId, backend, error));
   }
 }
 
-async function executeSdkImage(taskId: string, options: ImageOptions): Promise<SdkExecution> {
+async function executeSdkImage(taskId: string, options: ImageOptions & { prompt: string }): Promise<SdkExecution> {
   const validated = validateImageOptions(options);
   const expected = Array.from({ length: validated.count }, (_, index) =>
-    outputPathForImage(taskId, options.output, index, validated.count),
+    outputPathForImage(taskId, options.output, index, validated.count, validated.temporary),
   );
   for (const target of expected) {
     if (existsSync(target.path) && !validated.overwrite) {
@@ -189,10 +194,10 @@ async function executeSdkImage(taskId: string, options: ImageOptions): Promise<S
     "Image request:",
     options.prompt,
   ].join("\n\n");
-  const input: Input = [
-    { type: "text", text: buildWorkspacePrompt(text, options.instructions, true) },
-    ...validated.imagePaths.map((path) => ({ type: "local_image" as const, path })),
-  ];
+  const input = toSdkInput({
+    text: buildWorkspacePrompt(text, options.instructions, true),
+    imagePaths: validated.imagePaths,
+  });
   const execution = await runSdkTurn({
     taskId,
     prompt: input,
@@ -227,12 +232,16 @@ export async function runTask(options: WorkspaceTaskOptions): Promise<TaskResult
   const taskId = randomUUID();
   emit(options.onEvent, { type: "started", taskId, backend: "sdk", kind: "task" });
   try {
-    if (options.backend !== "sdk") throw usageError("workspace task requires --backend sdk");
+    if (options.backend !== undefined && options.backend !== "sdk") throw usageError("workspace task only supports the SDK backend");
+    const input = resolveTaskInput(options);
     const config = loadConfig({ sdkTimeoutMs: options.timeoutMs, codexHome: options.codexHome });
     const workingDirectory = resolveWorkingDirectory(options.workingDirectory);
     const execution = await runSdkTurn({
       taskId,
-      prompt: buildWorkspacePrompt(options.prompt, options.instructions, options.noFollowup ?? false),
+      prompt: toSdkInput({
+        text: buildWorkspacePrompt(input.text, options.instructions, options.noFollowup ?? false),
+        imagePaths: input.imagePaths,
+      }),
       workingDirectory,
       sandboxMode: options.sandboxMode ?? "danger-full-access",
       networkAccess: options.networkAccess ?? true,
@@ -297,12 +306,20 @@ export async function resumeTask(options: ResumeTaskOptions): Promise<TaskResult
   const stored = loadPendingTask(options.taskId);
   emit(options.onEvent, { type: "started", taskId: stored.taskId, backend: "sdk", kind: "resume" });
   try {
+    const input = resolveTaskInput({
+      prompt: options.answer,
+      promptFiles: options.promptFiles,
+      imagePaths: options.imagePaths,
+    });
     const config = loadConfig({ sdkTimeoutMs: options.timeoutMs, codexHome: options.codexHome });
     const noFollowup = options.noFollowup ?? stored.noFollowup;
     const execution = await runSdkTurn({
       taskId: stored.taskId,
       threadId: stored.threadId,
-      prompt: buildWorkspacePrompt(`Caller answer:\n${options.answer}\n\nContinue the delegated task.`, options.instructions, noFollowup),
+      prompt: toSdkInput({
+        text: buildWorkspacePrompt(`Caller answer:\n${input.text}\n\nContinue the delegated task.`, options.instructions, noFollowup),
+        imagePaths: input.imagePaths,
+      }),
       workingDirectory: stored.workingDirectory,
       sandboxMode: stored.sandboxMode,
       networkAccess: stored.networkAccess,
@@ -314,7 +331,7 @@ export async function resumeTask(options: ResumeTaskOptions): Promise<TaskResult
       onEvent: options.onEvent,
     });
     const taskOptions: WorkspaceTaskOptions = {
-      prompt: options.answer,
+      prompt: input.text,
       backend: "sdk",
       workingDirectory: stored.workingDirectory,
       sandboxMode: stored.sandboxMode,

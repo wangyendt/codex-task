@@ -1,0 +1,33 @@
+# CodexTask
+
+CodexTask describes delegated work by the result the caller wants, while allowing every command to receive a composable set of multimodal inputs.
+
+## Language
+
+**Input Part**:
+One caller-supplied piece of task context: inline text, a prompt file, standard input, or a local image.
+_Avoid_: Prompt source, attachment type
+
+**Text Result**:
+A structured task result whose primary deliverable is text.
+_Avoid_: T2T, I2T
+
+**Image Artifact**:
+A generated PNG returned as a durable or managed temporary artifact.
+_Avoid_: T2I result, I2I result
+
+**Workspace Task**:
+Delegated work whose primary outcome is inspected or modified files, executed commands, and a concise handoff.
+_Avoid_: SDK task, code task
+
+**Workspace Context**:
+The directory, project rules, sandbox, network policy, and local tools available to a Workspace Task.
+_Avoid_: Current project input
+
+**Resume Turn**:
+Additional Input Parts sent to the same paused Workspace Task and Codex thread.
+_Avoid_: Resume task
+
+**Managed Temporary Artifact**:
+An artifact stored under CodexTask's temporary root and eligible for TTL and capacity cleanup.
+_Avoid_: Cache, final output

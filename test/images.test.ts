@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import test from "node:test";
 import { outputPathForImage, validateImageOptions, writePngArtifact } from "../src/images.js";
 
@@ -55,4 +55,23 @@ test("outputPathForImage creates deterministic batch paths", () => {
   const target = outputPathForImage("00000000-0000-0000-0000-000000000000", "./poster.png", 1, 3);
   assert.match(target.path, /poster-2\.png$/);
   assert.equal(target.temporary, false);
+});
+
+test("image output defaults to a unique durable file in the current directory", () => {
+  const target = outputPathForImage("12345678-0000-0000-0000-000000000000", undefined, 0, 1);
+  assert.equal(target.path, resolve("image-12345678.png"));
+  assert.equal(target.temporary, false);
+});
+
+test("temporary image output is explicit and managed", () => {
+  const target = outputPathForImage("12345678-0000-0000-0000-000000000000", undefined, 0, 1, true);
+  assert.match(target.path, /codex-task[/\\]12345678-0000-0000-0000-000000000000[/\\]image-1\.png$/);
+  assert.equal(target.temporary, true);
+});
+
+test("temporary image output cannot also name a durable destination", () => {
+  assert.throws(
+    () => validateImageOptions({ prompt: "meal", temporary: true, output: "./meal.png" }),
+    /--temp cannot be combined with --output/,
+  );
 });

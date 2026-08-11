@@ -37,6 +37,7 @@ export interface DirectRequestContext {
 export interface DirectRequestSpec {
   kind: "text" | "image";
   prompt: string;
+  imagePaths?: string[] | undefined;
   instructions?: string | undefined;
   model: ResolvedDirectModel;
   outputSchema?: Record<string, unknown> | undefined;
@@ -78,7 +79,7 @@ function imageTool(options: ValidatedImageOptions): Record<string, unknown> {
 
 function userContent(spec: DirectRequestSpec): Array<Record<string, unknown>> {
   const content: Array<Record<string, unknown>> = [{ type: "input_text", text: spec.prompt }];
-  for (const path of spec.imageOptions?.imagePaths ?? []) {
+  for (const path of spec.imagePaths ?? spec.imageOptions?.imagePaths ?? []) {
     const mimeType = imageMimeType(path);
     content.push({
       type: "input_image",
