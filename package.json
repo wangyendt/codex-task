@@ -44,6 +44,8 @@
   "files": [
     "dist",
     "skills",
+    "scripts/service",
+    "examples/mobile",
     ".codex-plugin",
     "README.md",
     "README_EN.md",

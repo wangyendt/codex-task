@@ -17,6 +17,8 @@ The skill and executable are separate. Installing this skill does not install th
 
 Do not silently perform a global npm installation. The package is `codex-task`, not `@wang121ye/codex-task`.
 
+For a persistent self-hosted service, use the repository's platform installer and a global package. Do not use `npx` in an auto-start configuration: it can require registry access during boot and can change the version unexpectedly.
+
 ## Choose by the desired result
 
 - Need text: use `codex-task text`. This covers text-to-text, image-to-text, and text-plus-image-to-text.
@@ -98,3 +100,16 @@ Use `--stream` only when JSONL progress events are useful. It is an item/task ev
 Run `codex-task doctor` when Direct authentication, native transport, model resolution, or SDK availability is uncertain. It is read-only and sends no model request.
 
 Run `codex-task gc` only for CodexTask-managed temporary artifacts and expired pending-task metadata. It never deletes default current-directory images or files under an explicit output path.
+
+## Use a remote service only when configured
+
+Prefer the local CLI. Use the HTTP service only when the user or environment explicitly supplies both a trusted service URL and Service Token. Never discover arbitrary LAN services, print the token, place it in a prompt, or send it to any host other than the configured service.
+
+Remote submission is asynchronous:
+
+1. POST JSON to `/v1/text`, `/v1/image`, `/v1/task`, or `/v1/tasks/:taskId/resume` with `Authorization: Bearer <token>`.
+2. Poll the returned `statusUrl` until `completed`, `needs_input`, `failed`, or `cancelled`.
+3. Download `result.artifacts[].downloadUrl` using the same token.
+4. For `needs_input`, relay every question and resume with `result.taskId`.
+
+The service does not provide TLS. Treat remote `task` as equivalent to local SDK execution with the requested sandbox and network permissions; the default remains `danger-full-access`, network enabled, and approval `never`. Do not expose the service directly to the public internet.

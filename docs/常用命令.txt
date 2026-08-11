@@ -18,10 +18,34 @@ codex-task text --help
 codex-task image --help
 codex-task task --help
 codex-task resume --help
+codex-task serve --help
+
+# === 自托管服务：持久服务使用全局包，不把 npx 写入开机启动。 ===
+codex-task serve --host 127.0.0.1 --port 7777
+node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))' > ./codex-task-token && chmod 600 ./codex-task-token && codex-task serve --host 0.0.0.0 --port 7777 --token-file ./codex-task-token
+bash ./scripts/service/install-ubuntu.sh
+bash ./scripts/service/uninstall-ubuntu.sh
+bash ./scripts/service/install-macos.sh
+bash ./scripts/service/uninstall-macos.sh
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
+systemctl --user status codex-task.service
+journalctl --user -u codex-task.service -f
+launchctl print "gui/$(id -u)/com.wangyendt.codex-task"
+Get-ScheduledTask -TaskName CodexTask | Get-ScheduledTaskInfo
+
+# === HTTP API：0.0.0.0 只用于监听，手机应使用电脑的局域网/VPN IP。 ===
+curl -sS http://127.0.0.1:7777/healthz
+curl -sS -X POST http://127.0.0.1:7777/v1/text -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"把这段需求整理成三条要点"}'
+curl -sS -X POST http://127.0.0.1:7777/v1/image -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"生成一份俯拍健身营养餐","quality":"high","count":1}'
+curl -sS -X POST http://127.0.0.1:7777/v1/task -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"实现营养餐详情页并运行测试","workingDirectory":"/absolute/server/path/to/meal-app","sandboxMode":"danger-full-access","networkAccess":true}'
+curl -sS -X POST http://127.0.0.1:7777/v1/tasks/替换为taskId/resume -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"按单人份展示热量"}'
+curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer $CODEX_TASK_TOKEN"
+curl -fL http://127.0.0.1:7777/v1/jobs/替换为jobId/artifacts/0 -H "Authorization: Bearer $CODEX_TASK_TOKEN" -o ./artifact.png
 
 # === 图片结果：文生图、图生图、图文生图都使用 image。默认输出到当前目录。 ===
-codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果，俯拍，食材边界清晰"
-codex-task image "把餐盘调整成高蛋白低脂版本" -i ./meal.png
+codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果；四种食物分区摆放，俯拍，完整餐盘，食材边界清晰；浅灰桌面，柔和自然光；不要文字、水印、餐具和其他食物。" -o ./docs/assets/fitness-meal.png --size 1024x1024 --quality high
+codex-task image "把这份餐食调整成高蛋白低碳版本：增加约 50% 的鸡胸肉，糙米减少约一半；保持餐盘、俯拍机位、光线、牛油果、西兰花和写实风格不变" -i ./docs/assets/fitness-meal.png -o ./docs/assets/fitness-meal-high-protein.png --size 1024x1024 --quality high
 codex-task image "结合两张参考图的摆盘和配色" -i ./layout.png -i ./palette.png -f ./nutrition-rules.md -o ./artifacts
 codex-task image "生成三个不同摆盘方案" -f ./meal-brief.md -f ./brand-style.md -n 3 --concurrency 2 -o ./artifacts
 codex-task image "透明背景的食材图标" --size 1024x1024 --quality high --background transparent -o ./food-icon.png
@@ -29,7 +53,7 @@ codex-task image "仅供当前流程分析的草图" --temp
 
 # === 文本结果：文生文、图生文、图文生文都使用 text。 ===
 codex-task text "把以下营养建议整理成三条要点"
-codex-task text "识别图中的食物，估算每项热量和总热量，只返回 JSON" -i ./meal.png
+codex-task text "识别图片中的全部食物，估算每项可食部分重量和热量" -i ./docs/assets/fitness-meal.png --schema ./docs/examples/nutrition.schema.json --model gpt-5.6-sol --reasoning medium
 codex-task text "比较两份餐食的蛋白质、碳水和总热量" -i ./meal-a.png -i ./meal-b.png
 codex-task text "制定一周饮食调整建议" -f ./training-goal.md -f ./allergies.md -i ./meal.png
 printf '%s' "总热量控制在 700 kcal 内" | codex-task text "给出调整建议" -f ./training-goal.md -i ./meal.png
@@ -37,7 +61,7 @@ codex-task text "分析方案风险" --model gpt-5.6-sol --reasoning high
 codex-task text "生成迁移方案" --stream
 
 # === 工作区结果：task 固定使用 SDK；cwd 是 Codex 读取和修改的当前项目。 ===
-codex-task task "实现健身营养餐详情页并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./meal.png --cwd ./meal-app
+codex-task task "实现健身营养餐详情页并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./docs/assets/fitness-meal.png --cwd ./meal-app
 codex-task task "按现有项目约定修复这个问题" -f ./bug-report.md -i ./screenshot.png --cwd /absolute/path/to/repository --no-followup
 codex-task task "整理本地代码，不访问网络" --cwd /absolute/path/to/repository --no-network
 codex-task task "只修改当前工作区并测试" --cwd /absolute/path/to/repository --sandbox workspace-write

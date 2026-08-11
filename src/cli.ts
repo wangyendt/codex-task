@@ -5,6 +5,7 @@ import { dispatch, streamTaskEvents } from "./api.js";
 import { runDoctor } from "./doctor.js";
 import { asCodexTaskError, usageError } from "./errors.js";
 import { resolveTaskInput, type ResolvedTaskInput } from "./inputs.js";
+import { startCodexTaskServer } from "./server.js";
 import { companionSkillPath } from "./skill.js";
 import { runGarbageCollection } from "./state.js";
 import type {
@@ -95,6 +96,17 @@ function jsonFile(path: string | undefined): Record<string, unknown> | undefined
     return JSON.parse(readFileSync(path, "utf8")) as Record<string, unknown>;
   } catch (error) {
     throw usageError(`could not parse JSON file ${path}: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function serviceToken(path: string | undefined): string | undefined {
+  if (!path) return process.env["CODEX_TASK_SERVER_TOKEN"]?.trim() || undefined;
+  try {
+    const token = readFileSync(path, "utf8").trim();
+    if (!token) throw new Error("token file is empty");
+    return token;
+  } catch (error) {
+    throw usageError(`could not read service token file ${path}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -292,6 +304,42 @@ program.command("doctor").description("inspect local Direct and SDK readiness wi
 program.command("gc").description("remove expired CodexTask state and temporary artifacts").action(() => {
   writeJson(runGarbageCollection());
 });
+
+program
+  .command("serve")
+  .description("run the authenticated CodexTask HTTP service")
+  .option("--host <host>", "listener address", "127.0.0.1")
+  .option("--port <port>", "listener port", "7777")
+  .option("--token-file <path>", "read the Bearer token from a protected file")
+  .option("--max-concurrency <count>", "maximum simultaneously running jobs", "2")
+  .action(async (flags: Record<string, unknown>) => {
+    const port = integer(flags["port"] as string, "port");
+    const maxConcurrency = integer(flags["maxConcurrency"] as string, "max-concurrency");
+    if (!port || port > 65_535) throw usageError("port must be an integer from 1 to 65535");
+    const token = serviceToken(flags["tokenFile"] as string | undefined);
+    const server = await startCodexTaskServer({
+      host: flags["host"] as string,
+      port,
+      token,
+      maxConcurrency,
+    });
+    writeJson({
+      status: "listening",
+      url: server.url,
+      host: server.host,
+      port: server.port,
+      authentication: token ? "bearer" : "none-loopback-only",
+    });
+    await new Promise<void>((resolve) => {
+      const stop = (): void => {
+        process.off("SIGINT", stop);
+        process.off("SIGTERM", stop);
+        void server.close().finally(resolve);
+      };
+      process.once("SIGINT", stop);
+      process.once("SIGTERM", stop);
+    });
+  });
 
 program
   .command("skill")

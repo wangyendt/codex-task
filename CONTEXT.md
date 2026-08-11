@@ -31,3 +31,15 @@ _Avoid_: Resume task
 **Managed Temporary Artifact**:
 An artifact stored under CodexTask's temporary root and eligible for TTL and capacity cleanup.
 _Avoid_: Cache, final output
+
+**Remote Job**:
+An asynchronous HTTP submission that tracks one Text Result, Image Artifact, Workspace Task, or Resume Turn from queued state to a terminal result.
+_Avoid_: Remote task, queue item
+
+**Service Token**:
+A bearer secret that grants the holder authority to submit CodexTask work and download its artifacts from a running service.
+_Avoid_: API key, Codex token
+
+**Remote Input Part**:
+Inline text, a named UTF-8 prompt document, or a base64-encoded image uploaded in an HTTP request and materialized only for the lifetime of its Remote Job.
+_Avoid_: Server path, mobile attachment

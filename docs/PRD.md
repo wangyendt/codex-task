@@ -2,7 +2,7 @@
 
 ## 1. 产品概述
 
-CodexTask 是轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方通过 CLI 或 TypeScript API，把文本、图片和工作区任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更。
+CodexTask 是轻量、local-first、Codex-first 的跨 Agent 多模态任务运行器。调用方通过 CLI、TypeScript API 或可选的自托管 HTTP 服务，把文本、图片和工作区任务交给独立 Codex worker，并取得结构化文本、图片或工作区变更。
 
 产品按期望结果提供四个命令：
 
@@ -25,7 +25,7 @@ CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认�
 
 领域术语以根目录 [`CONTEXT.md`](../CONTEXT.md) 为准。产品界面使用“期望结果”命名，不以 `t2t`、`i2t`、`t2i`、`i2i` 作为命令名，因为同一请求可以同时包含文本、文件和图片。
 
-- **轻量**：无 daemon、内部队列或工作流 DAG。
+- **轻量**：CLI/API 不要求 daemon；可选 HTTP 服务只有内存 job 队列，不引入数据库或工作流 DAG。
 - **可组合**：位置文本、多个 prompt 文件、stdin 和多张图片可以共同组成一次请求。
 - **显式**：不提供 auto backend，不在请求发出后静默切换模型重放。
 - **Agent-first**：stdout 是稳定 JSON，流式模式是 JSONL。
@@ -59,6 +59,7 @@ codex-task task [prompt] [-f <path>...] [-i <path>...] [--cwd <path>]
 codex-task resume <task-id> [answer] [-f <path>...] [-i <path>...]
 codex-task doctor
 codex-task gc
+codex-task serve [--host <host>] [--port <port>] [--token-file <path>]
 codex-task skill path
 ```
 
@@ -134,6 +135,20 @@ codex-task skill path
 - SkillTruck 安装 Skill；npm 安装 CLI。Skill 不静默全局安装 npm 包。
 - Skill 按期望结果选择命令，并明确 Direct、SDK、持久/临时输出边界。
 
+### 5.9 自托管 HTTP 服务
+
+- `codex-task serve` 默认监听 `127.0.0.1:7777`；监听非 loopback 地址必须提供 Service Token。
+- 对外提供异步 `text`、`image`、`task`、`resume` 提交，job 轮询和鉴权 artifact 下载。
+- 提交立即返回 `202 + jobId + statusUrl`，避免移动网络长连接承载完整模型调用。
+- 远端请求支持 inline prompt、最多 20 份命名 prompt 文档，以及最多 5 张 base64 图片；不允许客户端提交服务器本地输入路径。
+- 图片上传仅在任务运行期间物化到 `os.tmpdir()/codex-task/server/<job-id>`，终态后删除整个上传目录。
+- 远程 image 产物使用受管临时输出；artifact URL 隐藏服务器绝对路径，默认随终态 job 保留 24 小时。
+- job 队列只存在内存；服务重启后旧 job URL 不可查询。底层 SDK `needs_input` task metadata 仍按现有规则保存，调用方必须自行保留 task ID。
+- 服务不内置 TLS/CORS/用户体系/公网穿透；推荐可信局域网、VPN 或 HTTPS 反向代理。
+- Token 持有者拥有该用户的 CodexTask 权限；远程 `task` 默认权限与本地一致。
+- 三平台安装脚本使用全局 `codex-task@latest`：Ubuntu systemd user、macOS LaunchAgent、Windows 用户登录 Scheduled Task。
+- Android Kotlin 与 iOS Swift 示例必须覆盖 image、text、task、resume、轮询、上传和 artifact 下载。
+
 ## 6. 非功能与发布需求
 
 - Node.js 20+、TypeScript、ESM-only，发布类型声明。
@@ -147,7 +162,7 @@ codex-task skill path
 
 ## 7. 明确不做
 
-- 常驻服务、远程执行、内部队列、DAG。
+- 中心化托管平台、跨用户租户系统、持久化远程 job 队列、DAG。
 - Direct 本地工具循环。
 - 非 Codex provider。
 - GUI/TUI。
@@ -163,5 +178,7 @@ codex-task skill path
 4. 图片默认落到当前目录；只有 `--temp` 是受管临时产物；二者的清理语义可验证。
 5. 图片参数、输入大小、数量和覆盖保护均在请求前验证。
 6. README、PRD、常用命令与 Skill 使用同一命令和术语。
-7. npm tarball 只包含运行产物、Skill 和必要文档，安装后可 import 并执行 `--help`。
-8. 获得授权后手动执行 Direct smoke test；失败时诚实记录实验性限制。
+7. 非 loopback 服务无 token 时拒绝启动；HTTP 集成测试覆盖鉴权、异步状态、四类任务和 artifact 下载。
+8. npm tarball 包含运行产物、Skill、自启动脚本和移动端示例，安装后可 import 并执行 `--help`。
+9. Ubuntu/macOS shell 脚本通过语法检查；Swift 示例通过类型检查；无法在当前 CI 编译的平台示例明确说明验证边界。
+10. 获得授权后手动执行 Direct smoke test；失败时诚实记录实验性限制。

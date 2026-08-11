@@ -1,0 +1,26 @@
+{
+  "foods": [
+    {
+      "name": "煎烤鸡胸肉",
+      "estimatedGrams": 220,
+      "calories": 380
+    },
+    {
+      "name": "熟糙米饭",
+      "estimatedGrams": 250,
+      "calories": 280
+    },
+    {
+      "name": "西兰花",
+      "estimatedGrams": 170,
+      "calories": 60
+    },
+    {
+      "name": "牛油果",
+      "estimatedGrams": 100,
+      "calories": 160
+    }
+  ],
+  "totalCalories": 880,
+  "note": "以上重量和热量根据图片中的视觉份量估算，实际数值会因食材品种、烹饪用油及熟制程度而存在误差。"
+}

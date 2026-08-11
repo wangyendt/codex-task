@@ -11,6 +11,17 @@ test("CLI help exposes the capability commands", () => {
   assert.match(output, /image/);
   assert.match(output, /task/);
   assert.match(output, /resume/);
+  assert.match(output, /serve/);
+});
+
+test("serve help exposes network-safe service controls", () => {
+  const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "serve", "--help"], {
+    encoding: "utf8",
+  });
+  assert.match(output, /--host <host>/);
+  assert.match(output, /--port <port>/);
+  assert.match(output, /--token-file <path>/);
+  assert.match(output, /--max-concurrency <count>/);
 });
 
 test("CLI version follows package.json", () => {

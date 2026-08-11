@@ -19,7 +19,11 @@ try {
   const installed = join(temp, "node_modules", "codex-task");
   const module = await import(pathToFileURL(join(installed, "dist", "index.js")).href);
   if (typeof module.generateText !== "function") throw new Error("generateText export is unavailable");
+  if (typeof module.startCodexTaskServer !== "function") throw new Error("startCodexTaskServer export is unavailable");
   execFileSync(process.execPath, [join(installed, "dist", "cli.js"), "--help"], { stdio: "ignore" });
+  execFileSync(process.execPath, [join(installed, "dist", "cli.js"), "serve", "--help"], { stdio: "ignore" });
+  readFileSync(join(installed, "scripts", "service", "install-ubuntu.sh"), "utf8");
+  readFileSync(join(installed, "examples", "mobile", "ios", "CodexTaskClient.swift"), "utf8");
   const installedManifest = JSON.parse(readFileSync(join(installed, "package.json"), "utf8"));
   const cliVersion = execFileSync(process.execPath, [join(installed, "dist", "cli.js"), "--version"], {
     encoding: "utf8",

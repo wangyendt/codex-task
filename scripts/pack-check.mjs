@@ -17,6 +17,17 @@ for (const required of [
   "README.md",
   "README_EN.md",
   "THIRD_PARTY_NOTICES.md",
+  "scripts/service/install-ubuntu.sh",
+  "scripts/service/uninstall-ubuntu.sh",
+  "scripts/service/install-macos.sh",
+  "scripts/service/uninstall-macos.sh",
+  "scripts/service/Install-Windows.ps1",
+  "scripts/service/Uninstall-Windows.ps1",
+  "examples/mobile/README.md",
+  "examples/mobile/android/CodexTaskClient.kt",
+  "examples/mobile/android/MealWorkflow.kt",
+  "examples/mobile/ios/CodexTaskClient.swift",
+  "examples/mobile/ios/MealWorkflow.swift",
 ]) {
   if (!files.includes(required)) throw new Error(`npm package is missing ${required}`);
 }

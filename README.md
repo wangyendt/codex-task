@@ -2,9 +2,9 @@
 
 > 把文本、图片和项目任务交给另一个 Codex worker，拿回结构化文本、生成图片或已经完成的工作区变更。
 
-[English](./README_EN.md) · [产品需求文档](./docs/PRD.md) · [常用命令](./docs/常用命令.txt) · [Companion Skill](./skills/codex-task/SKILL.md)
+[English](./README_EN.md) · [产品需求文档](./docs/PRD.md) · [远程部署与手机调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md) · [常用命令](./docs/常用命令.txt) · [Companion Skill](./skills/codex-task/SKILL.md)
 
-CodexTask 是一个轻量、可组合的跨 Agent 多模态任务运行器。它提供一个 CLI、一个 TypeScript API 和一个可安装给其他 Agent 的 Skill；没有 daemon，没有托管服务，也不需要额外 API key。
+CodexTask 是一个轻量、可组合的跨 Agent 多模态任务运行器。它提供 CLI、TypeScript API、可安装给其他 Agent 的 Skill，以及可选的自托管 HTTP 服务；没有中心化托管平台，也不需要额外 API key。
 
 你只需要按“想拿回什么”选择命令：
 
@@ -27,53 +27,75 @@ npm install -g codex-task
 codex-task doctor
 ```
 
-下面用一次“健身营养餐”任务串起四种输出。
+下面用同一份“健身营养餐”串起文生图、图生文、图生图、工作区任务和恢复。图片与 JSON 都来自真实模型请求，不是占位图或手写示意；由于生成模型具有随机性，重新执行会得到不同但同类的结果。
 
 ### 1. 生成图片：一份健身营养餐
 
 ```bash
-codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果，俯拍，食材边界清晰"
+codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果；四种食物分区摆放，俯拍，完整餐盘，食材边界清晰；浅灰桌面，柔和自然光；不要文字、水印、餐具和其他食物。" -o ./docs/assets/fitness-meal.png --size 1024x1024 --quality high
 ```
 
-不传 `--output` 时，最终图片默认保存在当前目录，而不是临时目录：
+这个示例用 `--output` 保存到 README 资产目录；省略它时，最终图片默认保存在当前目录，而不是临时目录：
 
 ```json
 {
   "status": "completed",
-  "taskId": "a1b2c3d4-...",
+  "taskId": "78cda394-e16f-4cac-9d0f-9b8a010e3879",
   "backend": "direct",
   "text": "Generated 1 image(s).",
   "effectiveModel": "gpt-5.5",
   "artifacts": [
-    { "path": "/your/project/image-a1b2c3d4.png", "kind": "image", "mimeType": "image/png" }
+    { "path": "/your/project/docs/assets/fitness-meal.png", "kind": "image", "mimeType": "image/png" }
   ]
 }
 ```
 
+真实生成结果：
+
+![CodexTask 文生图生成的健身营养餐](./docs/assets/fitness-meal.png)
+
 ### 2. 图片 + prompt → JSON 营养分析
 
 ```bash
-codex-task text "识别图中的食物，估算每项热量和总热量，只返回 JSON" -i ./image-a1b2c3d4.png
+codex-task text "识别图片中的全部食物，估算每项可食部分重量和热量。重量和热量必须是数字；热量为基于视觉份量的近似值；note 用中文说明估算存在误差。" -i ./docs/assets/fitness-meal.png --schema ./docs/examples/nutrition.schema.json --model gpt-5.6-sol --reasoning medium
 ```
 
-`text` 不只是文生文，也支持图生文和图文生文：
+图生文输入就是上一步的真实图片：
+
+<img src="./docs/assets/fitness-meal.png" alt="CodexTask 图生文输入图片" width="520">
+
+`text` 不只是文生文，也支持图生文和图文生文。下面是该命令真实返回的结构化内容，完整文件见 [`fitness-meal-analysis.json`](./docs/examples/fitness-meal-analysis.json)：
 
 ```json
 {
-  "status": "completed",
-  "taskId": "b2c3d4e5-...",
-  "backend": "direct",
-  "text": "{\"foods\":[{\"name\":\"鸡胸肉\",\"calories\":248},{\"name\":\"糙米\",\"calories\":216},{\"name\":\"西兰花\",\"calories\":55},{\"name\":\"牛油果\",\"calories\":160}],\"totalCalories\":679}",
-  "artifacts": []
+  "foods": [
+    { "name": "煎烤鸡胸肉", "estimatedGrams": 220, "calories": 380 },
+    { "name": "熟糙米饭", "estimatedGrams": 250, "calories": 280 },
+    { "name": "西兰花", "estimatedGrams": 170, "calories": 60 },
+    { "name": "牛油果", "estimatedGrams": 100, "calories": 160 }
+  ],
+  "totalCalories": 880,
+  "note": "以上重量和热量根据图片中的视觉份量估算，实际数值会因食材品种、烹饪用油及熟制程度而存在误差。"
 }
 ```
 
-需要严格 JSON Schema 时可传 `--schema ./nutrition.schema.json`。
+这只是视觉估算，不应替代称重或专业营养建议。
 
-### 3. 多份要求 + 参考图 → 完成项目
+### 3. 图片 + prompt → 高蛋白版本图片
 
 ```bash
-codex-task task "实现一个健身营养餐详情页，并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./image-a1b2c3d4.png --cwd ./meal-app
+codex-task image "把这份餐食调整成高蛋白低碳版本：增加约 50% 的鸡胸肉，糙米减少约一半；只改变鸡胸肉和糙米的份量，保持餐盘、俯拍机位、光线、牛油果、西兰花和写实摄影风格不变；不要增加其他食物、文字或水印。" -i ./docs/assets/fitness-meal.png -o ./docs/assets/fitness-meal-high-protein.png --size 1024x1024 --quality high
+```
+
+| 图生图输入 | 真实图生图输出 |
+| --- | --- |
+| <img src="./docs/assets/fitness-meal.png" alt="原始健身营养餐" width="420"> | <img src="./docs/assets/fitness-meal-high-protein.png" alt="高蛋白低碳版本健身营养餐" width="420"> |
+| 原始份量 | 增加鸡胸肉、减少糙米 |
+
+### 4. 多份要求 + 参考图 → 完成项目
+
+```bash
+codex-task task "实现一个健身营养餐详情页，并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./docs/assets/fitness-meal.png --cwd ./meal-app
 ```
 
 `task` 固定使用官方 Codex SDK，不需要再写 `--backend sdk`。`--cwd ./meal-app` 表示：把该目录作为 worker 的当前项目；Codex 会从这里读取代码、项目规则与 skills，并在授权范围内修改文件、执行命令。
@@ -91,7 +113,7 @@ codex-task task "实现一个健身营养餐详情页，并运行相关测试" -
 }
 ```
 
-### 4. 回答追问并继续
+### 5. 回答追问并继续
 
 如果任务存在关键歧义，`task` 可能返回：
 
@@ -182,6 +204,45 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 ```
 
 如果不想全局安装 CLI，Agent 可回退到 `npx --yes codex-task@latest`。也可以运行 `codex-task skill path` 查看 npm 包内 Skill 的位置。
+
+## 手机远程调用与开机自启
+
+`codex-task serve` 把四类任务开放为带 Bearer Token 的异步 HTTP API。手机提交后先拿到 `jobId`，再轮询状态；这样不会因为一次图片或工作区任务耗时几分钟而一直占住移动端请求。
+
+| 目标 | 接口 |
+| --- | --- |
+| 文本结果 | `POST /v1/text` |
+| 图片结果 | `POST /v1/image` |
+| 工作区变更 | `POST /v1/task` |
+| 回答追问 | `POST /v1/tasks/:taskId/resume` |
+| 查询进度 | `GET /v1/jobs/:jobId` |
+| 下载产物 | `GET /v1/jobs/:jobId/artifacts/:index` |
+
+持久服务选择 `npm install -g codex-task@latest`，不使用 `npx`：开机启动不应依赖 npm 网络，启动程序路径也应稳定。三平台脚本会安装或升级全局包、生成随机 token、创建用户级自启动项并立即启动服务。
+
+```bash
+# Ubuntu：systemd user service
+bash ./scripts/service/install-ubuntu.sh
+
+# macOS：LaunchAgent
+bash ./scripts/service/install-macos.sh
+
+# Windows PowerShell：Scheduled Task
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
+```
+
+默认监听 `0.0.0.0:7777` 以便手机访问，安装完成会打印 token。手机地址应填写电脑的局域网/VPN 地址，例如 `http://192.168.1.50:7777`，不能填写 `0.0.0.0`。
+
+```bash
+curl -sS http://127.0.0.1:7777/healthz
+curl -sS -X POST http://127.0.0.1:7777/v1/text -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"把这段需求整理成三条要点"}'
+curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer $CODEX_TASK_TOKEN"
+```
+
+> [!CAUTION]
+> 服务不内置 TLS，不能直接暴露到公网。建议只在可信局域网、Tailscale/WireGuard 或 HTTPS 反向代理后使用。Token 持有者实际上拥有该电脑上 CodexTask 的执行权；远程 `task` 默认仍是 `danger-full-access`、可联网、`approval: never`。服务重启会丢失内存中的远程 job 查询记录，终态 job 和下载链接默认保留 24 小时；已返回的 SDK `taskId` 仍可按 CodexTask 自身状态恢复。
+
+Android Kotlin 与 iOS Swift 的完整示例在 [`examples/mobile`](./examples/mobile/README.md)：流程会先调用 `image` 生成营养餐，下载图片后调用 `text` 做图生文，再调用 `task` 修改服务器上的项目，必要时通过 `resume` 回答追问。更完整的部署、升级、卸载、JSON 字段和安全说明见[远程服务部署与移动端调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md)。
 
 ## TypeScript API
 
