@@ -2,7 +2,7 @@
 
 > 把一个明确的小任务交给另一个 AI Agent，拿回文本、图片或已经完成的工作。直接复用你现有的 Codex 环境。
 
-[English](./README.md) · [产品需求文档](./docs/PRD.md) · [Companion skill](./skills/codex-task/SKILL.md)
+[English](./README.md) · [产品需求文档](./docs/PRD.md) · [常用命令](./docs/常用命令.txt) · [Companion skill](./skills/codex-task/SKILL.md)
 
 CodexTask 把 Codex 封装成可供其他 Agent 调用的轻量 worker，统一提供三类能力：
 
@@ -108,11 +108,11 @@ printf '%s' "是，必须保持。" | codex-task resume <task-id>
 
 仓库内置 `skills/codex-task/SKILL.md`。它教调用方 Agent 选择 `text`、`image`、`task` 或 `resume`，并不是注入底层 Codex worker 的 skill。
 
-使用 [skillmanager](https://github.com/wangyendt/skillmanager) 安装：
+使用 [SkillTruck](https://github.com/wangyendt/skilltruck) 安装：
 
 ```bash
-npm install -g @wang121ye/skillmanager
-skillmanager install https://github.com/wangyendt/codex-task --global
+npm install -g skilltruck
+skilltruck install https://github.com/wangyendt/codex-task --global
 ```
 
 也可以查看 npm 包内 skill 的位置：

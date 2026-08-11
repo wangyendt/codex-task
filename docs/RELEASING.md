@@ -1,6 +1,6 @@
 # Release setup
 
-CodexTask intentionally follows the same push-to-release workflow as `skillmanager`: every non-release push to `main` creates a patch version. The release commit then publishes the package and creates a `vX.Y.Z` tag.
+CodexTask intentionally follows the same push-to-release workflow as [SkillTruck](https://github.com/wangyendt/skilltruck): every non-release push to `main` creates a patch version. The release commit then publishes the package and creates a `vX.Y.Z` tag.
 
 ## GitHub repository settings
 

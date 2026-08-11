@@ -25,7 +25,7 @@ CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认�
 2. 调用方 Agent生成图片，或基于 1–5 张本地参考图编辑图片。
 3. 调用方 Agent 把代码/文件任务交给 Codex SDK worker。
 4. SDK worker 需要澄清时暂停，调用方取得答案后恢复同一 Codex thread。
-5. companion skill 被 skillmanager 安装给其他 Agent，教它们正确选择 CLI 命令和后端。
+5. companion skill 被 SkillTruck 安装给其他 Agent，教它们正确选择 CLI 命令和后端。
 
 ## 3. 产品原则
 
@@ -115,7 +115,7 @@ Prompt 支持位置参数、`--prompt-file` 或 stdin，三者互斥。Direct �
 - 标准路径：`skills/codex-task/SKILL.md`。
 - plugin manifest：`.codex-plugin/plugin.json`。
 - 该 skill 只教其他 Agent 调用 CodexTask CLI，不是 worker skill。
-- npm postinstall 不静默安装；通过 skillmanager 分发，`codex-task skill path` 返回包内路径。
+- npm postinstall 不静默安装；通过 SkillTruck 分发，`codex-task skill path` 返回包内路径。
 
 ## 5. 非功能需求
 

@@ -2,7 +2,7 @@
 
 > Give another AI agent a focused errand—and get back text, images, or finished work. Powered by your existing Codex setup.
 
-[中文文档](./README.zh-CN.md) · [PRD](./docs/PRD.md) · [Companion skill](./skills/codex-task/SKILL.md)
+[中文文档](./README.zh-CN.md) · [PRD](./docs/PRD.md) · [Common commands](./docs/常用命令.txt) · [Companion skill](./skills/codex-task/SKILL.md)
 
 CodexTask turns Codex into a small, composable worker for other agents. It ships one CLI, one TypeScript API, and one installable skill for three jobs:
 
@@ -124,11 +124,11 @@ Pass `--no-followup` to require reasonable assumptions and a completed/failed re
 
 This repository ships `skills/codex-task/SKILL.md`. It teaches a calling agent when to choose text, image, task, or resume. It is a companion skill, not a skill injected into the Codex worker.
 
-Install it with [skillmanager](https://github.com/wangyendt/skillmanager):
+Install it with [SkillTruck](https://github.com/wangyendt/skilltruck):
 
 ```bash
-npm install -g @wang121ye/skillmanager
-skillmanager install https://github.com/wangyendt/codex-task --global
+npm install -g skilltruck
+skilltruck install https://github.com/wangyendt/codex-task --global
 ```
 
 Or locate the copy included in the npm package:
