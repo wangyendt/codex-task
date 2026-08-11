@@ -1,16 +1,103 @@
-# CodexTask 常用命令：每条命令均为可直接复制执行的单行命令。
+# CodexTask 常用命令：按场景选择一组执行，不要从上到下全部运行。每条命令均为可直接复制执行的单行命令。
 
-# === 安装与升级：SkillTruck 安装 Skill；npm 安装真正执行任务的 CLI。 ===
-npm install -g codex-task
+# === 场景：首次安装或升级 CLI；这是所有本机命令和自托管服务的基础。 ===
+npm install -g codex-task@latest
+codex-task --version
+codex-task doctor
+
+# === 场景：不再使用 CLI 时才卸载；不会删除 Codex 登录和普通项目文件。 ===
+npm uninstall -g codex-task
+
+# === 场景：把 Companion Skill 安装给其他 Agent；SkillTruck 安装 Skill，npm 安装上面的 CLI。 ===
 npm install -g skilltruck
 skilltruck install https://github.com/wangyendt/codex-task --global
-codex-task --version
-npm install -g codex-task@latest
-npm uninstall -g codex-task
-npx --yes codex-task@latest doctor
 codex-task skill path
 
-# === 诊断与帮助：doctor 不发送模型请求。 ===
+# === 场景：第一次需要自启动脚本、但本机没有仓库；克隆后进入仓库根目录。 ===
+git clone https://github.com/wangyendt/codex-task.git
+cd codex-task
+
+# === 场景：macOS 长期运行服务；在仓库根目录执行，安装 npm latest、立即启动，并在以后每次登录时自动启动。 ===
+bash ./scripts/service/install.sh
+curl -sS http://127.0.0.1:7777/healthz
+cat "$HOME/Library/Application Support/codex-task/service/token"
+
+# === macOS：仅在当前终端要运行 HTTP curl 示例时执行；不会影响服务，手机 App 也不读取这个环境变量。 ===
+export CODEX_TASK_TOKEN="$(cat "$HOME/Library/Application Support/codex-task/service/token")"
+
+# === macOS：查看服务状态。 ===
+launchctl print "gui/$(id -u)/com.wangyendt.codex-task"
+
+# === macOS：持续查看日志；按 Ctrl+C 退出日志查看，不会停止服务。 ===
+tail -f "$HOME/Library/Application Support/codex-task/service/service.log"
+
+# === macOS：配置变化或升级后重启服务。 ===
+launchctl kickstart -k "gui/$(id -u)/com.wangyendt.codex-task"
+
+# === macOS：不再需要自动启动服务时才卸载；保留全局 npm 包和 Codex 数据。 ===
+bash ./scripts/service/uninstall.sh
+
+# === 场景：Ubuntu/Linux 长期运行服务；在仓库根目录执行，安装 npm latest、立即启动，并默认随用户会话启动。 ===
+bash ./scripts/service/install.sh
+curl -sS http://127.0.0.1:7777/healthz
+cat "${XDG_CONFIG_HOME:-$HOME/.config}/codex-task/service/token"
+
+# === Ubuntu/Linux：仅在当前终端要运行 HTTP curl 示例时执行。 ===
+export CODEX_TASK_TOKEN="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/codex-task/service/token")"
+
+# === Ubuntu/Linux：查看服务状态。 ===
+systemctl --user status codex-task.service
+
+# === Ubuntu/Linux：持续查看日志；按 Ctrl+C 退出日志查看，不会停止服务。 ===
+journalctl --user -u codex-task.service -f
+
+# === Ubuntu/Linux：配置变化或升级后重启服务。 ===
+systemctl --user restart codex-task.service
+
+# === Ubuntu/Linux：只有需要“用户尚未登录也启动”时才执行。 ===
+sudo loginctl enable-linger "$USER"
+
+# === Ubuntu/Linux：不再需要自动启动服务时才卸载；保留全局 npm 包和 Codex 数据。 ===
+bash ./scripts/service/uninstall.sh
+
+# === 场景：Windows 长期运行服务；在仓库根目录的 PowerShell 中执行，服务会立即启动，并在用户登录时自动启动。 ===
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
+Get-Content "$env:APPDATA\codex-task\service\token"
+
+# === Windows：仅在当前 PowerShell 要运行 HTTP 请求示例时执行。 ===
+$env:CODEX_TASK_TOKEN = (Get-Content "$env:APPDATA\codex-task\service\token" -Raw).Trim()
+
+# === Windows：查看服务状态。 ===
+Get-ScheduledTask -TaskName CodexTask | Get-ScheduledTaskInfo
+
+# === Windows：持续查看日志；按 Ctrl+C 退出日志查看，不会停止服务。 ===
+Get-Content "$env:APPDATA\codex-task\service\service.log" -Wait
+
+# === Windows：配置变化或升级后重启服务。 ===
+Restart-ScheduledTask -TaskName CodexTask
+
+# === Windows：不再需要自动启动服务时才卸载；保留全局 npm 包和 Codex 数据。 ===
+powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
+
+# === 场景：只在当前电脑临时测试服务；不需要 Token，关闭终端或按 Ctrl+C 后停止。 ===
+codex-task serve --host 127.0.0.1 --port 7777
+
+# === 场景：临时让局域网手机访问；生成临时 Token 并在前台运行，关闭终端后停止，每次执行都会覆盖旧 Token。 ===
+node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))' > ./codex-task-token && chmod 600 ./codex-task-token && codex-task serve --host 0.0.0.0 --port 7777 --token-file ./codex-task-token
+cat ./codex-task-token
+
+# === 场景：用 macOS/Linux curl 测试已安装的 HTTP 服务；先按所属平台执行上面的 export。 ===
+# === 0.0.0.0 只用于服务监听；手机 URL 应把 127.0.0.1 换成电脑的局域网或 VPN IP。 ===
+curl -sS http://127.0.0.1:7777/healthz
+curl -sS -X POST http://127.0.0.1:7777/v1/text -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"把这段需求整理成三条要点"}'
+curl -sS -X POST http://127.0.0.1:7777/v1/image -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"生成一份俯拍健身营养餐","quality":"high","count":1}'
+curl -sS -X POST http://127.0.0.1:7777/v1/task -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"实现营养餐详情页并运行测试","workingDirectory":"/absolute/server/path/to/meal-app","sandboxMode":"danger-full-access","networkAccess":true}'
+curl -sS -X POST http://127.0.0.1:7777/v1/tasks/替换为taskId/resume -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"按单人份展示热量"}'
+curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer $CODEX_TASK_TOKEN"
+curl -fL http://127.0.0.1:7777/v1/jobs/替换为jobId/artifacts/0 -H "Authorization: Bearer $CODEX_TASK_TOKEN" -o ./artifact.png
+
+# === 场景：诊断、清理和查看帮助；doctor 不发送模型请求。 ===
+npx --yes codex-task@latest doctor
 codex-task doctor
 codex-task gc
 codex-task --help
@@ -20,34 +107,7 @@ codex-task task --help
 codex-task resume --help
 codex-task serve --help
 
-# === 自托管服务：持久服务使用全局包，不把 npx 写入开机启动。 ===
-codex-task serve --host 127.0.0.1 --port 7777
-node -e 'process.stdout.write(require("node:crypto").randomBytes(32).toString("base64url"))' > ./codex-task-token && chmod 600 ./codex-task-token && codex-task serve --host 0.0.0.0 --port 7777 --token-file ./codex-task-token
-bash ./scripts/service/install.sh
-bash ./scripts/service/uninstall.sh
-powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
-powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1
-
-# === 自托管服务底层平台脚本：通常优先使用上面的统一入口。 ===
-bash ./scripts/service/install-ubuntu.sh
-bash ./scripts/service/uninstall-ubuntu.sh
-bash ./scripts/service/install-macos.sh
-bash ./scripts/service/uninstall-macos.sh
-systemctl --user status codex-task.service
-journalctl --user -u codex-task.service -f
-launchctl print "gui/$(id -u)/com.wangyendt.codex-task"
-Get-ScheduledTask -TaskName CodexTask | Get-ScheduledTaskInfo
-
-# === HTTP API：0.0.0.0 只用于监听，手机应使用电脑的局域网/VPN IP。 ===
-curl -sS http://127.0.0.1:7777/healthz
-curl -sS -X POST http://127.0.0.1:7777/v1/text -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"把这段需求整理成三条要点"}'
-curl -sS -X POST http://127.0.0.1:7777/v1/image -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"生成一份俯拍健身营养餐","quality":"high","count":1}'
-curl -sS -X POST http://127.0.0.1:7777/v1/task -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"实现营养餐详情页并运行测试","workingDirectory":"/absolute/server/path/to/meal-app","sandboxMode":"danger-full-access","networkAccess":true}'
-curl -sS -X POST http://127.0.0.1:7777/v1/tasks/替换为taskId/resume -H "Authorization: Bearer $CODEX_TASK_TOKEN" -H 'Content-Type: application/json' -d '{"prompt":"按单人份展示热量"}'
-curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer $CODEX_TASK_TOKEN"
-curl -fL http://127.0.0.1:7777/v1/jobs/替换为jobId/artifacts/0 -H "Authorization: Bearer $CODEX_TASK_TOKEN" -o ./artifact.png
-
-# === 图片结果：文生图、图生图、图文生图都使用 image。默认输出到当前目录。 ===
+# === 场景：需要图片结果；文生图、图生图、图文生图都使用 image，默认输出到当前目录。 ===
 codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果；四种食物分区摆放，俯拍，完整餐盘，食材边界清晰；浅灰桌面，柔和自然光；不要文字、水印、餐具和其他食物。" -o ./docs/assets/fitness-meal.png --size 1024x1024 --quality high
 codex-task image "把这份餐食调整成高蛋白低碳版本：增加约 50% 的鸡胸肉，糙米减少约一半；保持餐盘、俯拍机位、光线、牛油果、西兰花和写实风格不变" -i ./docs/assets/fitness-meal.png -o ./docs/assets/fitness-meal-high-protein.png --size 1024x1024 --quality high
 codex-task image "结合两张参考图的摆盘和配色" -i ./layout.png -i ./palette.png -f ./nutrition-rules.md -o ./artifacts
@@ -55,7 +115,7 @@ codex-task image "生成三个不同摆盘方案" -f ./meal-brief.md -f ./brand-
 codex-task image "透明背景的食材图标" --size 1024x1024 --quality high --background transparent -o ./food-icon.png
 codex-task image "仅供当前流程分析的草图" --temp
 
-# === 文本结果：文生文、图生文、图文生文都使用 text。 ===
+# === 场景：需要文本结果；文生文、图生文、图文生文都使用 text。 ===
 codex-task text "把以下营养建议整理成三条要点"
 codex-task text "识别图片中的全部食物，估算每项可食部分重量和热量" -i ./docs/assets/fitness-meal.png --schema ./docs/examples/nutrition.schema.json --model gpt-5.6-sol --reasoning medium
 codex-task text "比较两份餐食的蛋白质、碳水和总热量" -i ./meal-a.png -i ./meal-b.png
@@ -64,22 +124,22 @@ printf '%s' "总热量控制在 700 kcal 内" | codex-task text "给出调整建
 codex-task text "分析方案风险" --model gpt-5.6-sol --reasoning high
 codex-task text "生成迁移方案" --stream
 
-# === 工作区结果：task 固定使用 SDK；cwd 是 Codex 读取和修改的当前项目。 ===
+# === 场景：需要修改项目；task 固定使用 SDK，cwd 是 Codex 读取和修改的当前项目。 ===
 codex-task task "实现健身营养餐详情页并运行相关测试" -f ./requirements.md -f ./api-contract.md -i ./docs/assets/fitness-meal.png --cwd ./meal-app
 codex-task task "按现有项目约定修复这个问题" -f ./bug-report.md -i ./screenshot.png --cwd /absolute/path/to/repository --no-followup
 codex-task task "整理本地代码，不访问网络" --cwd /absolute/path/to/repository --no-network
 codex-task task "只修改当前工作区并测试" --cwd /absolute/path/to/repository --sandbox workspace-write
 
-# === 恢复任务：task 返回 needs_input 后，用 taskId 补充文本、文件或图片。 ===
+# === 场景：task 返回 needs_input；用 taskId 补充文本、文件或图片。 ===
 codex-task resume "$TASK_ID" "按单人份展示热量"
 codex-task resume "$TASK_ID" "继续完成" -f ./copy-guidelines.md -i ./expected-layout.png
 printf '%s' "这是用户补充的完整要求" | codex-task resume "$TASK_ID" -f ./acceptance.md
 
-# === 显式选择 SDK 生成纯文本或图片；Direct 仍是 text/image 默认后端。 ===
+# === 场景：明确需要项目规则或本地 Skill；显式选择 SDK，Direct 仍是 text/image 默认后端。 ===
 codex-task text "读取当前项目规则后总结设计" --backend sdk
 codex-task image "按项目品牌规则生成营养餐封面" --backend sdk --cwd ./meal-app -o ./artifacts
 
-# === TypeScript SDK 与本地开发。 ===
+# === 场景：TypeScript SDK 与仓库本地开发。 ===
 npm install codex-task
 npm install
 npm run verify
@@ -87,7 +147,7 @@ npm test
 npm run build
 git status --short --branch
 
-# === npm 与 GitHub 发布检查。 ===
+# === 场景：维护者检查 npm 与 GitHub 发布状态。 ===
 npm view codex-task version
 cd /tmp && npx --yes codex-task@latest --version
 gh run list --repo wangyendt/codex-task
