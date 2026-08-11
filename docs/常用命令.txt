@@ -13,6 +13,12 @@ npm install -g skilltruck
 skilltruck install https://github.com/wangyendt/codex-task --global
 codex-task skill path
 
+# === 场景：给手机或其他设备创建受限 Token；这些命令独立于 install.sh，创建和吊销后立即生效。 ===
+codex-task token create --name iphone-text --allow text
+codex-task token create --name ipad-media --allow text,image
+codex-task token list
+codex-task token revoke iphone-text
+
 # === 场景：第一次需要自启动脚本、但本机没有仓库；克隆后进入仓库根目录。 ===
 git clone https://github.com/wangyendt/codex-task.git
 cd codex-task

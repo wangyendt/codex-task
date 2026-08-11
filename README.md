@@ -228,6 +228,17 @@ bash ./scripts/service/install.sh
 powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
 ```
 
+安装脚本生成的是全权限主 Token。给手机或其他设备使用时，可以独立创建只允许 `text`、只允许 `image`，或同时允许两者的设备 Token；创建后立即生效，不需要重启服务：
+
+```bash
+codex-task token create --name iphone-text --allow text
+codex-task token create --name ipad-media --allow text,image
+codex-task token list
+codex-task token revoke iphone-text
+```
+
+`create` 只在创建时返回一次完整 Token；`list` 只显示名称、权限和创建时间。设备 Token 只能使用 Direct，不能调用 SDK、`task` 或 `resume`；主 Token 仍可调用全部接口。这些命令和 `install.sh` 相互独立，可以在安装服务前后执行。
+
 卸载自启动服务但保留全局 npm 包、Codex 登录和任务数据：
 
 ```bash
@@ -247,7 +258,7 @@ curl -sS http://127.0.0.1:7777/v1/jobs/替换为jobId -H "Authorization: Bearer 
 ```
 
 > [!CAUTION]
-> 服务不内置 TLS，不能直接暴露到公网。建议只在可信局域网、Tailscale/WireGuard 或 HTTPS 反向代理后使用。Token 持有者实际上拥有该电脑上 CodexTask 的执行权；远程 `task` 默认仍是 `danger-full-access`、可联网、`approval: never`。服务重启会丢失内存中的远程 job 查询记录，终态 job 和下载链接默认保留 24 小时；已返回的 SDK `taskId` 仍可按 CodexTask 自身状态恢复。
+> 服务不内置 TLS，不能直接暴露到公网。建议只在可信局域网、Tailscale/WireGuard 或 HTTPS 反向代理后使用。主 Token 持有者拥有该电脑上 CodexTask 的完整执行权；远程 `task` 默认仍是 `danger-full-access`、可联网、`approval: never`。只需要文本或图片的设备应使用受限 Token。服务重启会丢失内存中的远程 job 查询记录，终态 job 和下载链接默认保留 24 小时；已返回的 SDK `taskId` 仍可按 CodexTask 自身状态恢复。
 
 Android Kotlin 与 iOS Swift 示例见 [`examples/mobile`](./examples/mobile/README.md)：先调用 `image` 生成营养餐，下载图片后调用 `text` 做图生文，再用 `task` 修改服务器上的项目；如果 worker 追问，就用 `resume` 回答。部署、升级、卸载、JSON 字段和安全说明见[远程服务部署与移动端调用](./docs/knowhow/20260811_远程服务部署与移动端调用.md)。
 

@@ -37,7 +37,7 @@ An asynchronous HTTP submission that tracks one Text Result, Image Artifact, Wor
 _Avoid_: Remote task, queue item
 
 **Service Token**:
-A bearer secret that grants the holder authority to submit CodexTask work and download its artifacts from a running service.
+A bearer secret accepted by a running CodexTask service. A Master Service Token grants every remote capability; a Scoped Service Token grants Direct `text`, Direct `image`, or both.
 _Avoid_: API key, Codex token
 
 **Remote Input Part**:

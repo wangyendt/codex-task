@@ -60,6 +60,9 @@ codex-task resume <task-id> [answer] [-f <path>...] [-i <path>...]
 codex-task doctor
 codex-task gc
 codex-task serve [--host <host>] [--port <port>] [--token-file <path>]
+codex-task token create --name <name> --allow text|image|text,image
+codex-task token list
+codex-task token revoke <name>
 codex-task skill path
 ```
 
@@ -138,6 +141,9 @@ codex-task skill path
 ### 5.9 自托管 HTTP 服务
 
 - `codex-task serve` 默认监听 `127.0.0.1:7777`；监听非 loopback 地址必须提供 Service Token。
+- 安装脚本生成的主 Service Token 保持全权限；独立的设备 Token 可授权 Direct `text`、`image` 或两者，不能使用 SDK 或调用 `task`/`resume`。
+- `token create/list/revoke` 独立于安装脚本；设备 Token 创建和吊销后立即生效，列表不得返回 Token 明文。
+- 设备 Token 只以哈希形式落盘；完整 Token 仅在创建时返回。
 - 对外提供异步 `text`、`image`、`task`、`resume` 提交，job 轮询和鉴权 artifact 下载。
 - 提交立即返回 `202 + jobId + statusUrl`，避免移动网络长连接承载完整模型调用。
 - 远端请求支持 inline prompt、最多 20 份命名 prompt 文档，以及最多 5 张 base64 图片；不允许客户端提交服务器本地输入路径。
@@ -145,7 +151,7 @@ codex-task skill path
 - 远程 image 产物使用受管临时输出；artifact URL 隐藏服务器绝对路径，默认随终态 job 保留 24 小时。
 - job 队列只存在内存；服务重启后旧 job URL 不可查询。底层 SDK `needs_input` task metadata 仍按现有规则保存，调用方必须自行保留 task ID。
 - 服务不内置 TLS/CORS/用户体系/公网穿透；推荐可信局域网、VPN 或 HTTPS 反向代理。
-- Token 持有者拥有该用户的 CodexTask 权限；远程 `task` 默认权限与本地一致。
+- 主 Token 持有者拥有该用户的完整 CodexTask 权限；受限设备 Token 只有声明的 Direct `text`/`image` 权限。
 - 三平台安装脚本使用全局 `codex-task@latest`：Ubuntu systemd user、macOS LaunchAgent、Windows 用户登录 Scheduled Task。
 - Android Kotlin 与 iOS Swift 示例必须覆盖 image、text、task、resume、轮询、上传和 artifact 下载。
 
@@ -178,7 +184,7 @@ codex-task skill path
 4. 图片默认落到当前目录；只有 `--temp` 是受管临时产物；二者的清理语义可验证。
 5. 图片参数、输入大小、数量和覆盖保护均在请求前验证。
 6. README、PRD、常用命令与 Skill 使用同一命令和术语。
-7. 非 loopback 服务无 token 时拒绝启动；HTTP 集成测试覆盖鉴权、异步状态、四类任务和 artifact 下载。
+7. 非 loopback 服务无 token 时拒绝启动；HTTP 集成测试覆盖主 Token、受限 Token、异步状态、四类任务和 artifact 下载。
 8. npm tarball 包含运行产物、Skill、自启动脚本和移动端示例，安装后可 import 并执行 `--help`。
 9. Ubuntu/macOS shell 脚本通过语法检查；Swift 示例通过类型检查；无法在当前 CI 编译的平台示例明确说明验证边界。
 10. 获得授权后手动执行 Direct smoke test；失败时诚实记录实验性限制。

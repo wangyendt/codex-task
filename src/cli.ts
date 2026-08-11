@@ -6,6 +6,13 @@ import { runDoctor } from "./doctor.js";
 import { asCodexTaskError, usageError } from "./errors.js";
 import { resolveTaskInput, type ResolvedTaskInput } from "./inputs.js";
 import { startCodexTaskServer } from "./server.js";
+import {
+  createServiceToken,
+  listServiceTokens,
+  parseServiceTokenScopes,
+  revokeServiceToken,
+  serviceTokenRegistryPath,
+} from "./service-tokens.js";
 import { companionSkillPath } from "./skill.js";
 import { runGarbageCollection } from "./state.js";
 import type {
@@ -305,6 +312,33 @@ program.command("gc").description("remove expired CodexTask state and temporary 
   writeJson(runGarbageCollection());
 });
 
+const tokenCommand = program.command("token").description("manage scoped Service Tokens");
+
+tokenCommand
+  .command("create")
+  .description("create a Service Token for text and/or image requests")
+  .requiredOption("--name <name>", "device or client name")
+  .requiredOption("--allow <scopes>", "comma-separated scopes: text,image")
+  .action(async (flags: Record<string, unknown>) => {
+    writeJson(await createServiceToken(
+      flags["name"] as string,
+      parseServiceTokenScopes(flags["allow"] as string),
+    ));
+  });
+
+tokenCommand
+  .command("list")
+  .description("list Service Token names and scopes without secrets")
+  .action(() => writeJson({ tokens: listServiceTokens() }));
+
+tokenCommand
+  .command("revoke <name>")
+  .description("revoke a Service Token by name")
+  .action(async (name: string) => {
+    await revokeServiceToken(name);
+    writeJson({ status: "revoked", name });
+  });
+
 program
   .command("serve")
   .description("run the authenticated CodexTask HTTP service")
@@ -321,6 +355,7 @@ program
       host: flags["host"] as string,
       port,
       token,
+      tokenRegistryPath: serviceTokenRegistryPath(),
       maxConcurrency,
     });
     writeJson({

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -54,6 +55,76 @@ test("remote client can inspect health but needs a bearer token for task APIs", 
     });
   } finally {
     await server.close();
+  }
+});
+
+test("scoped Service Token can submit only its allowed task kinds", async () => {
+  const home = mkdtempSync(join(tmpdir(), "codex-task-token-server-"));
+  const created = JSON.parse(execFileSync(
+    process.execPath,
+    ["--import", "tsx", "src/cli.ts", "token", "create", "--name", "iphone-text", "--allow", "text"],
+    { encoding: "utf8", env: { ...process.env, CODEX_TASK_HOME: home } },
+  )) as { token: string };
+  const server = await startCodexTaskServer({
+    host: "127.0.0.1",
+    port: 0,
+    token: TOKEN,
+    tokenRegistryPath: join(home, "config", "service", "tokens.json"),
+    run: async (request) => ({
+      status: "completed",
+      taskId: "11111111-1111-4111-8111-111111111111",
+      backend: request.kind === "task" || request.kind === "resume" ? "sdk" : "direct",
+      text: request.kind,
+      artifacts: [],
+    }),
+  });
+  const scopedHeaders = {
+    authorization: `Bearer ${created.token}`,
+    "content-type": "application/json",
+  };
+  try {
+    const textResponse = await fetch(`${server.url}/v1/text`, {
+      method: "POST",
+      headers: scopedHeaders,
+      body: JSON.stringify({ prompt: "Summarize this" }),
+    });
+    assert.equal(textResponse.status, 202);
+
+    const sdkResponse = await fetch(`${server.url}/v1/text`, {
+      method: "POST",
+      headers: scopedHeaders,
+      body: JSON.stringify({ prompt: "Try SDK", backend: "sdk" }),
+    });
+    assert.equal(sdkResponse.status, 403);
+    assert.deepEqual(await sdkResponse.json(), {
+      error: { code: "FORBIDDEN", message: "Scoped Service Tokens allow Direct requests only" },
+    });
+
+    for (const [path, kind] of [
+      ["/v1/image", "image"],
+      ["/v1/task", "task"],
+      ["/v1/tasks/11111111-1111-4111-8111-111111111111/resume", "resume"],
+    ] as const) {
+      const response = await fetch(`${server.url}${path}`, {
+        method: "POST",
+        headers: scopedHeaders,
+        body: JSON.stringify({ prompt: "Not allowed" }),
+      });
+      assert.equal(response.status, 403);
+      assert.deepEqual(await response.json(), {
+        error: { code: "FORBIDDEN", message: `Service Token does not allow ${kind} requests` },
+      });
+    }
+
+    const adminResponse = await fetch(`${server.url}/v1/image`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ prompt: "Admin remains allowed" }),
+    });
+    assert.equal(adminResponse.status, 202);
+  } finally {
+    await server.close();
+    rmSync(home, { recursive: true, force: true });
   }
 });
 

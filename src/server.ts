@@ -7,6 +7,7 @@ import { dispatch } from "./api.js";
 import { asCodexTaskError } from "./errors.js";
 import { ensureDir } from "./fs-utils.js";
 import { appPaths } from "./paths.js";
+import { scopesForServiceToken, type ServiceTokenScope } from "./service-tokens.js";
 import type { CommonOptions, ReasoningEffort, TaskRequest, TaskResult } from "./types.js";
 
 export type RemoteTaskRunner = (request: TaskRequest) => Promise<TaskResult>;
@@ -15,6 +16,7 @@ export interface CodexTaskServerOptions {
   host?: string | undefined;
   port?: number | undefined;
   token?: string | undefined;
+  tokenRegistryPath?: string | undefined;
   maxConcurrency?: number | undefined;
   maxBodyBytes?: number | undefined;
   jobTtlMs?: number | undefined;
@@ -53,13 +55,57 @@ function writeJson(response: ServerResponse, status: number, value: unknown): vo
   response.end(`${JSON.stringify(value)}\n`);
 }
 
-function authorized(request: IncomingMessage, token: string | undefined): boolean {
-  if (!token) return true;
-  const header = request.headers.authorization;
-  if (!header?.startsWith("Bearer ")) return false;
-  const supplied = Buffer.from(header.slice("Bearer ".length));
-  const expected = Buffer.from(token);
+interface ServicePrincipal {
+  admin: boolean;
+  scopes: Set<ServiceTokenScope>;
+}
+
+function sameToken(suppliedToken: string, expectedToken: string): boolean {
+  const supplied = Buffer.from(suppliedToken);
+  const expected = Buffer.from(expectedToken);
   return supplied.length === expected.length && timingSafeEqual(supplied, expected);
+}
+
+function authenticate(
+  request: IncomingMessage,
+  token: string | undefined,
+  tokenRegistryPath: string | undefined,
+): ServicePrincipal | undefined {
+  if (!token) return { admin: true, scopes: new Set() };
+  const header = request.headers.authorization;
+  if (!header?.startsWith("Bearer ")) return undefined;
+  const supplied = header.slice("Bearer ".length);
+  if (sameToken(supplied, token)) return { admin: true, scopes: new Set() };
+  const scopes = tokenRegistryPath ? scopesForServiceToken(supplied, tokenRegistryPath) : undefined;
+  return scopes ? { admin: false, scopes } : undefined;
+}
+
+function requestedTaskKind(method: string | undefined, path: string): TaskRequest["kind"] | undefined {
+  if (method !== "POST") return undefined;
+  if (path === "/v1/text") return "text";
+  if (path === "/v1/image") return "image";
+  if (path === "/v1/task") return "task";
+  if (/^\/v1\/tasks\/[0-9a-f-]{36}\/resume$/i.test(path)) return "resume";
+  return undefined;
+}
+
+function principalAllows(principal: ServicePrincipal, kind: TaskRequest["kind"]): boolean {
+  if (principal.admin) return true;
+  return (kind === "text" || kind === "image") && principal.scopes.has(kind);
+}
+
+function rejectScopedSdk(
+  response: ServerResponse,
+  principal: ServicePrincipal | undefined,
+  body: Record<string, unknown>,
+): boolean {
+  if (principal?.admin === false && body["backend"] === "sdk") {
+    writeJson(response, 403, {
+      error: { code: "FORBIDDEN", message: "Scoped Service Tokens allow Direct requests only" },
+    });
+    return true;
+  }
+  return false;
 }
 
 function isLoopbackHost(host: string): boolean {
@@ -280,9 +326,19 @@ export async function startCodexTaskServer(
       writeJson(response, 200, { ok: true, service: "codex-task" });
       return;
     }
-    if (url.pathname.startsWith("/v1/") && !authorized(request, options.token)) {
+    const principal = url.pathname.startsWith("/v1/")
+      ? authenticate(request, options.token, options.tokenRegistryPath)
+      : undefined;
+    if (url.pathname.startsWith("/v1/") && !principal) {
       writeJson(response, 401, {
         error: { code: "UNAUTHORIZED", message: "A valid Bearer token is required" },
+      });
+      return;
+    }
+    const requestedKind = requestedTaskKind(request.method, url.pathname);
+    if (principal && requestedKind && !principalAllows(principal, requestedKind)) {
+      writeJson(response, 403, {
+        error: { code: "FORBIDDEN", message: `Service Token does not allow ${requestedKind} requests` },
       });
       return;
     }
@@ -301,6 +357,7 @@ export async function startCodexTaskServer(
         });
         return;
       }
+      if (rejectScopedSdk(response, principal, body)) return;
       try {
         const now = new Date().toISOString();
         const job: RemoteJob = {
@@ -344,6 +401,7 @@ export async function startCodexTaskServer(
       let body: Record<string, unknown>;
       try {
         body = await readJson(request, maxBodyBytes);
+        if (rejectScopedSdk(response, principal, body)) return;
         const now = new Date().toISOString();
         const job: RemoteJob = {
           jobId: randomUUID(),

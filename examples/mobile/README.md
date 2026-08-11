@@ -4,6 +4,14 @@
 
 不要把生产 Service Token 提交到 Git，也不要硬编码到公开 App。示例构造器接收 token，私有 App 可以从 Android Keystore、iOS Keychain、受管配置或用户输入中读取。
 
+安装脚本打印的是全权限主 Token。只需要文本和图片的 App 应使用独立设备 Token：
+
+```bash
+codex-task token create --name meal-app --allow text,image
+```
+
+命令只在创建时显示一次完整 Token，请把它存入 Android Keystore 或 iOS Keychain。`codex-task token list` 不显示秘密；不再信任设备时执行 `codex-task token revoke meal-app`，无需重启服务即可生效。设备 Token 只支持所列的 Direct `text`/`image` 接口；下面包含 `task` 和 `resume` 的完整 `MealWorkflow` 需要主 Token。
+
 ## 完整示例流程
 
 两个 `MealWorkflow` 都会实际串起四类任务：
@@ -66,4 +74,4 @@ http://192.168.1.50:7777
 https://codex-task.example.internal
 ```
 
-平台安装脚本打印的 token 通过 `Authorization: Bearer <token>` 发送。持有 token 的手机可以触发服务器上该用户权限范围内的 CodexTask；尤其要谨慎开放 `/v1/task`。
+Token 通过 `Authorization: Bearer <token>` 发送。受限设备 Token 只能调用创建时允许的 `text`/`image`；主 Token 可以触发服务器上该用户权限范围内的全部 CodexTask，尤其要谨慎开放 `/v1/task`。

@@ -172,9 +172,20 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, plus job polling and authenticated artifact downloads.
 
+The installer Token is the full-access master Token. Create a separate device Token for text only, image only, or both; changes take effect without restarting the service:
+
+```bash
+codex-task token create --name iphone-text --allow text
+codex-task token create --name ipad-media --allow text,image
+codex-task token list
+codex-task token revoke iphone-text
+```
+
+`create` returns the complete secret only once. `list` shows names, scopes, and creation times without secrets. Device Tokens are Direct-only and cannot call SDK, `task`, or `resume`; the master Token retains full access. Token management is independent of `install.sh` and may run before or after service installation.
+
 Uninstall auto-start while preserving the global npm package and Codex data with `bash ./scripts/service/uninstall.sh` on Ubuntu/Linux/macOS, or `powershell -ExecutionPolicy Bypass -File .\scripts\service\Uninstall-Windows.ps1` on Windows.
 
-The service has no built-in TLS and must not be exposed directly to the public internet. Use a trusted LAN, Tailscale/WireGuard, or an HTTPS reverse proxy. Treat the token as equivalent to the local user's CodexTask authority; remote workspace tasks still default to `danger-full-access`, network enabled, and approval `never`. Remote job polling state is in memory and is lost on service restart; terminal jobs and download URLs expire after 24 hours by default.
+The service has no built-in TLS and must not be exposed directly to the public internet. Use a trusted LAN, Tailscale/WireGuard, or an HTTPS reverse proxy. Treat the master Token as equivalent to the local user's CodexTask authority; use a scoped device Token when only text or image access is needed. Remote workspace tasks still default to `danger-full-access`, network enabled, and approval `never`. Remote job polling state is in memory and is lost on service restart; terminal jobs and download URLs expire after 24 hours by default.
 
 See the [deployment and API guide](./docs/knowhow/20260811_远程服务部署与移动端调用.md) and the [Android Kotlin and iOS Swift examples](./examples/mobile/README.md). The sample generates an image, analyzes it as text, changes a server-side project, and resumes after a question.
 

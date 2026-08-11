@@ -105,6 +105,8 @@ Run `codex-task gc` only for CodexTask-managed temporary artifacts and expired p
 
 Prefer the local CLI. Use the HTTP service only when the user or environment explicitly supplies both a trusted service URL and Service Token. Never discover arbitrary LAN services, print the token, place it in a prompt, or send it to any host other than the configured service.
 
+A Service Token may be scoped to `text`, `image`, or both. Scoped Tokens are Direct-only. Use only an endpoint allowed by the supplied Token. A `403 FORBIDDEN` response means the Token is valid but lacks that task or backend permission; do not retry it or fall back to another endpoint. Only a full-access master Token may use SDK or call remote `task` or `resume`.
+
 Remote submission is asynchronous:
 
 1. POST JSON to `/v1/text`, `/v1/image`, `/v1/task`, or `/v1/tasks/:taskId/resume` with `Authorization: Bearer <token>`.
