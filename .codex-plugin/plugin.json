@@ -1,6 +1,6 @@
 {
   "name": "codex-task",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "Delegate multimodal text, image, and workspace tasks to CodexTask",
   "author": {
     "name": "wang121ye",
