@@ -1,6 +1,21 @@
 # Release setup
 
-CodexTask intentionally follows the same push-to-release workflow as [SkillTruck](https://github.com/wangyendt/skilltruck): every non-release push to `main` creates a patch version. The release commit then publishes the package and creates a `vX.Y.Z` tag.
+CodexTask uses a path-filtered push-to-release workflow. A push to `main` creates a patch version only when it changes runtime code, runtime dependencies/build inputs, or runtime assets shipped with the npm package. The release commit then publishes the package and creates a `vX.Y.Z` tag.
+
+Automatic release paths:
+
+```text
+src/**
+package.json
+package-lock.json
+tsconfig.json
+tsconfig.build.json
+scripts/service/**
+skills/**
+.codex-plugin/plugin.json
+```
+
+README, `docs/**`, tests, examples, screenshots, and ordinary workflow-only changes do not create an npm release by themselves. They remain in GitHub and will be included the next time a core change is published. Use the `Bump patch on main` workflow's `workflow_dispatch` button when a non-core change must be released immediately.
 
 ## GitHub repository settings
 
@@ -27,7 +42,7 @@ No long-lived `NPM_TOKEN` is required. The publish job uses GitHub OIDC and npm 
 ## Workflow sequence
 
 ```text
-push main
+push core change to main
   → offline verification
   → npm version patch
   → sync plugin manifest

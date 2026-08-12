@@ -161,7 +161,7 @@ codex-task skill path
 - Direct native transport 是 optional dependency；不可用时 SDK 仍可安装。
 - Direct text 默认 10 分钟，image 每张 15 分钟，SDK task 30 分钟。
 - Direct 最多重试 3 次，只重试 429、5xx、连接中断和空响应。
-- main 任意 push 自动 patch；发布前必须通过 lint、workflow check、typecheck、test、build、pack check 和 clean install/import smoke test。
+- main 上只有核心运行时代码、依赖/构建输入或随 npm 包分发的运行时资源发生变化时才自动 patch；纯 README、docs、test、examples、截图或工作流改动不自动发版。发布前必须通过 lint、workflow check、typecheck、test、build、pack check 和 clean install/import smoke test。
 - npm Trusted Publishing/OIDC；发布成功后创建 `vX.Y.Z` tag。
 - CI 永不自动执行真实 Direct E2E。
 - 默认中文 README，独立英文 README。

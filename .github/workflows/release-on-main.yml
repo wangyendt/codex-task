@@ -3,6 +3,19 @@ name: Bump patch on main
 on:
   push:
     branches: [main]
+    paths:
+      # Runtime and public API implementation.
+      - src/**
+      # Runtime dependencies and npm package metadata.
+      - package.json
+      - package-lock.json
+      # Files that affect the emitted dist/ output.
+      - tsconfig.json
+      - tsconfig.build.json
+      # Runtime assets shipped in the npm package.
+      - scripts/service/**
+      - skills/**
+      - .codex-plugin/plugin.json
   workflow_dispatch:
 
 concurrency:
