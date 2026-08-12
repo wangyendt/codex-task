@@ -30,22 +30,29 @@ test("Unix users get one discoverable install and uninstall entry point", () => 
 test("each platform installer uses its user-level startup mechanism", () => {
   assert.match(script("install-ubuntu.sh"), /systemctl --user enable --now codex-task\.service/);
   assert.match(script("install-macos.sh"), /launchctl bootstrap "gui\/\$\(id -u\)"/);
+  assert.match(script("install-macos.sh"), /for delay in 0\.2 0\.5 1/);
   assert.match(script("Install-Windows.ps1"), /Register-ScheduledTask/);
   assert.match(script("Install-Windows.ps1"), /New-ScheduledTaskTrigger -AtLogOn/);
 });
 
-test("persistent service installers preserve an available proxy for background Direct requests", () => {
+test("persistent service installers support automatic, fixed, and disabled proxy modes", () => {
   for (const name of ["install-ubuntu.sh", "install-macos.sh"]) {
     const contents = script(name);
-    assert.match(contents, /service_proxy=.*CODEX_TASK_PROXY/);
+    assert.match(contents, /service_proxy=.*CODEX_TASK_SERVICE_PROXY/);
+    assert.match(contents, /CODEX_TASK_SKIP_GLOBAL_INSTALL/);
     assert.match(contents, /export CODEX_TASK_PROXY=/);
+    assert.match(contents, /automatic environment\/system detection/);
     assert.match(contents, /chmod 700 "\$runner"/);
+    assert.doesNotMatch(contents, /7890/);
   }
 
   const windows = script("Install-Windows.ps1");
-  assert.match(windows, /ServiceProxy/);
+  assert.match(windows, /CODEX_TASK_SERVICE_PROXY/);
+  assert.match(windows, /CODEX_TASK_SKIP_GLOBAL_INSTALL/);
   assert.match(windows, /CODEX_TASK_PROXY/);
+  assert.match(windows, /automatic environment\/system detection/);
   assert.match(windows, /icacls \$Runner \/inheritance:r/);
+  assert.doesNotMatch(windows, /7890/);
 });
 
 test("uninstallers preserve the global package and Codex data", () => {

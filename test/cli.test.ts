@@ -14,6 +14,18 @@ test("CLI help exposes the capability commands", () => {
   assert.match(output, /task/);
   assert.match(output, /resume/);
   assert.match(output, /serve/);
+  assert.match(output, /setup/);
+});
+
+test("setup exposes automatic, fixed, and direct proxy modes", () => {
+  const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "setup", "--help"], {
+    encoding: "utf8",
+  });
+  assert.match(output, /--proxy <url>/);
+  assert.match(output, /--no-proxy/);
+  assert.match(output, /--host <host>/);
+  assert.match(output, /--port <port>/);
+  assert.match(output, /--max-concurrency <count>/);
 });
 
 test("serve help exposes network-safe service controls", () => {

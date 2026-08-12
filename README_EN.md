@@ -162,7 +162,11 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 ## Self-hosted service and mobile clients
 
-`codex-task serve` exposes text, image, workspace, and resume work as authenticated asynchronous HTTP jobs. A boot service uses `npm install -g codex-task@latest` so startup does not depend on registry access and the executable path stays fixed.
+`codex-task serve` exposes text, image, workspace, and resume work as authenticated asynchronous HTTP jobs. After installing CodexTask globally, run `codex-task setup` once to detect macOS, Linux, or Windows, generate a random token, install the native user-level startup entry, and start it immediately.
+
+The default proxy mode is `auto`. Every Direct request checks `ALL_PROXY`, `HTTPS_PROXY`, and `HTTP_PROXY`, then the current operating-system proxy. Toggling the system proxy or changing its port does not require reinstalling the service, and no port such as `7890` is assumed. Use `codex-task setup --proxy socks5h://127.0.0.1:PORT` for a fixed proxy or `codex-task setup --no-proxy` to force direct connections. The command also accepts `--host`, `--port`, and `--max-concurrency`. Running it again updates and restarts the service without replacing its existing token.
+
+The repository installers remain available for first-time installation. They install or update `codex-task@latest` before creating the startup entry.
 
 | Platform | Installer | Startup mechanism |
 | --- | --- | --- |
@@ -172,7 +176,7 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, plus job polling and authenticated artifact downloads.
 
-For background Direct requests that need a proxy, provide it while installing, for example `CODEX_TASK_PROXY=socks5h://127.0.0.1:7890 bash ./scripts/service/install.sh`. The installer captures the first available value from `CODEX_TASK_PROXY`, `CODEXERRAND_PROXY`, `ALL_PROXY`, or `HTTPS_PROXY`. A LaunchAgent, systemd user service, or Scheduled Task does not reliably inherit an interactive shell environment; rerun the installer after changing the proxy. The proxy is stored only in the protected service runner and its value is not printed.
+The scripts accept `CODEX_TASK_SERVICE_PROXY=auto`, `direct`, or a complete proxy URL, and retain compatibility with `CODEX_TASK_PROXY` / `CODEXERRAND_PROXY`. A fixed URL is stored only in the protected service runner and its value is not printed.
 
 The installer Token is the full-access master Token. Create a separate device Token for text only, image only, or both; changes take effect without restarting the service:
 

@@ -218,20 +218,35 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 | 查询进度 | `GET /v1/jobs/:jobId` |
 | 下载产物 | `GET /v1/jobs/:jobId/artifacts/:index` |
 
-开机服务使用 `npm install -g codex-task@latest`。这样启动时不依赖 npm 网络，执行文件路径也不会变化。三平台脚本会安装或升级全局包、生成随机 token、创建用户级自启动项并立即启动服务。
+已经全局安装 CodexTask 后，运行一次 `codex-task setup` 即可自动识别 macOS、Linux 或 Windows，生成随机 token、创建用户级自启动项并立即启动服务：
+
+```bash
+codex-task setup
+```
+
+默认代理模式是 `auto`：每次 Direct 请求先读取服务环境中的 `ALL_PROXY` / `HTTPS_PROXY` / `HTTP_PROXY`，没有时再读取当前操作系统代理。开关系统代理或更换端口后无需重装服务，也不假定代理端口是 `7890`。需要固定代理或始终直连时使用：
+
+```bash
+codex-task setup --proxy socks5h://127.0.0.1:PORT
+codex-task setup --no-proxy
+```
+
+`setup` 还支持 `--host`、`--port` 和 `--max-concurrency`。再次运行会更新现有启动配置并重启服务，不会更换已有 token。
+
+仓库中的三平台安装脚本仍可用于首次安装：它们会先执行 `npm install -g codex-task@latest`，再建立开机服务。
 
 ```bash
 # Ubuntu/Linux 或 macOS：自动识别 systemd user / LaunchAgent
 bash ./scripts/service/install.sh
 
-# 后台 Direct 请求需要代理时
-CODEX_TASK_PROXY=socks5h://127.0.0.1:7890 bash ./scripts/service/install.sh
+# 固定代理；省略时为 auto
+CODEX_TASK_SERVICE_PROXY=socks5h://127.0.0.1:PORT bash ./scripts/service/install.sh
 
 # Windows PowerShell：Scheduled Task
 powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
 ```
 
-安装器按 `CODEX_TASK_PROXY`、`CODEXERRAND_PROXY`、`ALL_PROXY`、`HTTPS_PROXY` 的顺序捕获当前代理。macOS LaunchAgent、Linux systemd user service 和 Windows Scheduled Task 通常不会完整继承交互式终端环境，因此代理应在安装时显式提供；修改代理后重新运行安装脚本即可。代理地址只写入权限受限的 service runner，安装输出不会打印其内容。
+安装脚本的 `CODEX_TASK_SERVICE_PROXY` 支持 `auto`、`direct` 或完整代理 URL；为兼容旧用法，也会读取 `CODEX_TASK_PROXY` / `CODEXERRAND_PROXY`。固定地址只写入权限受限的 service runner，安装输出不会打印其内容。
 
 安装脚本生成的是全权限主 Token。给手机或其他设备使用时，可以独立创建只允许 `text`、只允许 `image`，或同时允许两者的设备 Token；创建后立即生效，不需要重启服务：
 

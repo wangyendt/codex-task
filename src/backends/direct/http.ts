@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { CodexTaskError } from "../../errors.js";
+import { resolveEffectiveProxy } from "../../system-proxy.js";
 
 const require = createRequire(import.meta.url);
 
@@ -55,13 +56,7 @@ export class ImpersonatedSession {
   private readonly session: NativeSession;
 
   constructor(timeoutMs: number, proxy?: string) {
-    const effectiveProxy =
-      proxy ??
-      process.env["CODEX_TASK_PROXY"] ??
-      process.env["CODEXERRAND_PROXY"] ??
-      process.env["ALL_PROXY"] ??
-      process.env["HTTPS_PROXY"] ??
-      process.env["https_proxy"];
+    const effectiveProxy = resolveEffectiveProxy({ configuredProxy: proxy });
     this.session = loadRequests().session({
       ja3: "auto",
       akamai: "auto",

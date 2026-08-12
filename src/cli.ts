@@ -14,6 +14,7 @@ import {
   serviceTokenRegistryPath,
 } from "./service-tokens.js";
 import { companionSkillPath } from "./skill.js";
+import { runServiceSetup } from "./setup.js";
 import { runGarbageCollection } from "./state.js";
 import type {
   Backend,
@@ -311,6 +312,27 @@ program.command("doctor").description("inspect local Direct and SDK readiness wi
 program.command("gc").description("remove expired CodexTask state and temporary artifacts").action(() => {
   writeJson(runGarbageCollection());
 });
+
+program
+  .command("setup")
+  .description("install and start the native user-level auto-start service")
+  .option("--host <host>", "listener address", "0.0.0.0")
+  .option("--port <port>", "listener port", "7777")
+  .option("--max-concurrency <count>", "maximum simultaneously running jobs", "2")
+  .option("--proxy <url>", "fixed HTTP/HTTPS/SOCKS proxy; defaults to automatic system detection")
+  .option("--no-proxy", "always connect directly and ignore environment and system proxies")
+  .action((flags: Record<string, unknown>) => {
+    const port = integer(flags["port"] as string, "port");
+    const maxConcurrency = integer(flags["maxConcurrency"] as string, "max-concurrency");
+    if (!port || port > 65_535) throw usageError("port must be an integer from 1 to 65535");
+    if (!maxConcurrency) throw usageError("max-concurrency must be a positive integer");
+    runServiceSetup({
+      host: flags["host"] as string,
+      port,
+      maxConcurrency,
+      proxy: flags["proxy"] as string | boolean | undefined,
+    });
+  });
 
 const tokenCommand = program.command("token").description("manage scoped Service Tokens");
 
