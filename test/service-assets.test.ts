@@ -34,6 +34,20 @@ test("each platform installer uses its user-level startup mechanism", () => {
   assert.match(script("Install-Windows.ps1"), /New-ScheduledTaskTrigger -AtLogOn/);
 });
 
+test("persistent service installers preserve an available proxy for background Direct requests", () => {
+  for (const name of ["install-ubuntu.sh", "install-macos.sh"]) {
+    const contents = script(name);
+    assert.match(contents, /service_proxy=.*CODEX_TASK_PROXY/);
+    assert.match(contents, /export CODEX_TASK_PROXY=/);
+    assert.match(contents, /chmod 700 "\$runner"/);
+  }
+
+  const windows = script("Install-Windows.ps1");
+  assert.match(windows, /ServiceProxy/);
+  assert.match(windows, /CODEX_TASK_PROXY/);
+  assert.match(windows, /icacls \$Runner \/inheritance:r/);
+});
+
 test("uninstallers preserve the global package and Codex data", () => {
   for (const name of ["uninstall-ubuntu.sh", "uninstall-macos.sh", "Uninstall-Windows.ps1"]) {
     const contents = script(name);

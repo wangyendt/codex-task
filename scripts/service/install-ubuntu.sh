@@ -4,6 +4,7 @@ set -euo pipefail
 service_host="${CODEX_TASK_SERVICE_HOST:-0.0.0.0}"
 service_port="${CODEX_TASK_SERVICE_PORT:-7777}"
 service_concurrency="${CODEX_TASK_SERVICE_CONCURRENCY:-2}"
+service_proxy="${CODEX_TASK_PROXY:-${CODEXERRAND_PROXY:-${ALL_PROXY:-${all_proxy:-${HTTPS_PROXY:-${https_proxy:-${HTTP_PROXY:-${http_proxy:-}}}}}}}}}"
 service_dir="${XDG_CONFIG_HOME:-$HOME/.config}/codex-task/service"
 user_unit_dir="${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 token_file="$service_dir/token"
@@ -29,9 +30,15 @@ quoted_host="$(printf '%q' "$service_host")"
 quoted_port="$(printf '%q' "$service_port")"
 quoted_token="$(printf '%q' "$token_file")"
 quoted_concurrency="$(printf '%q' "$service_concurrency")"
+proxy_export=""
+if [[ -n "$service_proxy" ]]; then
+  quoted_proxy="$(printf '%q' "$service_proxy")"
+  proxy_export="export CODEX_TASK_PROXY=$quoted_proxy"
+fi
 cat > "$runner" <<EOF
 #!/usr/bin/env bash
 export PATH=$quoted_path
+$proxy_export
 exec $quoted_bin serve --host $quoted_host --port $quoted_port --token-file $quoted_token --max-concurrency $quoted_concurrency
 EOF
 chmod 700 "$runner"
@@ -61,3 +68,6 @@ echo "Token: $(<"$token_file")"
 echo "Token file: $token_file"
 echo "Status: systemctl --user status codex-task.service"
 echo "For boot-time start before login, an administrator may run: loginctl enable-linger $USER"
+if [[ -n "$service_proxy" ]]; then
+  echo "Proxy: captured in the protected service runner."
+fi

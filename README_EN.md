@@ -172,6 +172,8 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, plus job polling and authenticated artifact downloads.
 
+For background Direct requests that need a proxy, provide it while installing, for example `CODEX_TASK_PROXY=socks5h://127.0.0.1:7890 bash ./scripts/service/install.sh`. The installer captures the first available value from `CODEX_TASK_PROXY`, `CODEXERRAND_PROXY`, `ALL_PROXY`, or `HTTPS_PROXY`. A LaunchAgent, systemd user service, or Scheduled Task does not reliably inherit an interactive shell environment; rerun the installer after changing the proxy. The proxy is stored only in the protected service runner and its value is not printed.
+
 The installer Token is the full-access master Token. Create a separate device Token for text only, image only, or both; changes take effect without restarting the service:
 
 ```bash

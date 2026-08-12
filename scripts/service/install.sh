@@ -4,6 +4,7 @@ set -euo pipefail
 if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
   echo "Install the CodexTask auto-start service for Ubuntu/Linux or macOS."
   echo "Usage: bash scripts/service/install.sh"
+  echo "Optional: set CODEX_TASK_PROXY, ALL_PROXY, or HTTPS_PROXY before installation."
   exit 0
 fi
 if [[ $# -ne 0 ]]; then

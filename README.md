@@ -224,9 +224,14 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 # Ubuntu/Linux 或 macOS：自动识别 systemd user / LaunchAgent
 bash ./scripts/service/install.sh
 
+# 后台 Direct 请求需要代理时
+CODEX_TASK_PROXY=socks5h://127.0.0.1:7890 bash ./scripts/service/install.sh
+
 # Windows PowerShell：Scheduled Task
 powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1
 ```
+
+安装器按 `CODEX_TASK_PROXY`、`CODEXERRAND_PROXY`、`ALL_PROXY`、`HTTPS_PROXY` 的顺序捕获当前代理。macOS LaunchAgent、Linux systemd user service 和 Windows Scheduled Task 通常不会完整继承交互式终端环境，因此代理应在安装时显式提供；修改代理后重新运行安装脚本即可。代理地址只写入权限受限的 service runner，安装输出不会打印其内容。
 
 安装脚本生成的是全权限主 Token。给手机或其他设备使用时，可以独立创建只允许 `text`、只允许 `image`，或同时允许两者的设备 Token；创建后立即生效，不需要重启服务：
 
