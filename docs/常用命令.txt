@@ -60,8 +60,8 @@ journalctl --user -u codex-task.service -f
 # === Ubuntu/Linux：配置变化或升级后重启服务。 ===
 systemctl --user restart codex-task.service
 
-# === Ubuntu/Linux：只有需要“用户尚未登录也启动”时才执行。 ===
-sudo loginctl enable-linger "$USER"
+# === Ubuntu/Linux：setup 会默认启用 linger；这条只用于确认，期望显示 Linger=yes。 ===
+loginctl show-user "$USER" -p Linger
 
 # === Ubuntu/Linux：不再需要自动启动服务时才卸载；保留全局 npm 包和 Codex 数据。 ===
 bash ./scripts/service/uninstall.sh

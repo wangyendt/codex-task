@@ -28,7 +28,14 @@ test("Unix users get one discoverable install and uninstall entry point", () => 
 });
 
 test("each platform installer uses its user-level startup mechanism", () => {
-  assert.match(script("install-ubuntu.sh"), /systemctl --user enable --now codex-task\.service/);
+  const ubuntu = script("install-ubuntu.sh");
+  assert.match(ubuntu, /loginctl enable-linger "\$current_user"/);
+  assert.match(ubuntu, /loginctl show-user "\$current_user" -p Linger --value/);
+  assert.ok(
+    ubuntu.indexOf("loginctl enable-linger") < ubuntu.indexOf("systemctl --user enable --now"),
+    "Ubuntu setup should enable linger before enabling the user service",
+  );
+  assert.match(ubuntu, /systemctl --user enable --now codex-task\.service/);
   assert.match(script("install-macos.sh"), /launchctl bootstrap "gui\/\$\(id -u\)"/);
   assert.match(script("install-macos.sh"), /for delay in 0\.2 0\.5 1/);
   assert.match(script("Install-Windows.ps1"), /Register-ScheduledTask/);
@@ -60,5 +67,6 @@ test("uninstallers preserve the global package and Codex data", () => {
     const contents = script(name);
     assert.doesNotMatch(contents, /npm\s+(?:uninstall|remove)/i);
     assert.doesNotMatch(contents, /\.codex[/\\]/i);
+    assert.doesNotMatch(contents, /disable-linger/);
   }
 });

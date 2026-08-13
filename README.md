@@ -218,7 +218,7 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 | 查询进度 | `GET /v1/jobs/:jobId` |
 | 下载产物 | `GET /v1/jobs/:jobId/artifacts/:index` |
 
-已经全局安装 CodexTask 后，运行一次 `codex-task setup` 即可自动识别 macOS、Linux 或 Windows，生成随机 token、创建用户级自启动项并立即启动服务：
+已经全局安装 CodexTask 后，运行一次 `codex-task setup` 即可自动识别 macOS、Linux 或 Windows，生成随机 token、创建用户级自启动项并立即启动服务。Linux 会默认启用当前用户的 systemd linger，让服务在机器启动、用户尚未登录时也能运行；首次设置可能要求输入 `sudo` 密码：
 
 ```bash
 codex-task setup

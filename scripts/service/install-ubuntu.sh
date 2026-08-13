@@ -13,6 +13,30 @@ unit_file="$user_unit_dir/codex-task.service"
 
 command -v npm >/dev/null 2>&1 || { echo "npm is required" >&2; exit 1; }
 command -v systemctl >/dev/null 2>&1 || { echo "systemd user services are required" >&2; exit 1; }
+command -v loginctl >/dev/null 2>&1 || { echo "systemd loginctl is required" >&2; exit 1; }
+
+current_user="$(id -un)"
+linger_state="$(loginctl show-user "$current_user" -p Linger --value 2>/dev/null || true)"
+if [[ "$linger_state" != "yes" ]]; then
+  echo "Enabling systemd user linger for $current_user so CodexTask starts before login."
+  if loginctl enable-linger "$current_user"; then
+    :
+  elif command -v sudo >/dev/null 2>&1 && sudo -n loginctl enable-linger "$current_user"; then
+    :
+  elif command -v sudo >/dev/null 2>&1 && [[ -t 0 ]]; then
+    sudo loginctl enable-linger "$current_user"
+  else
+    echo "Could not enable systemd user linger for $current_user." >&2
+    echo "Run codex-task setup from an interactive terminal with sudo access." >&2
+    exit 1
+  fi
+
+  linger_state="$(loginctl show-user "$current_user" -p Linger --value 2>/dev/null || true)"
+  if [[ "$linger_state" != "yes" ]]; then
+    echo "systemd did not report Linger=yes for $current_user after setup." >&2
+    exit 1
+  fi
+fi
 
 if [[ "${CODEX_TASK_SKIP_GLOBAL_INSTALL:-0}" != "1" ]]; then
   npm install -g codex-task@latest
@@ -66,7 +90,7 @@ echo "URL: http://$service_host:$service_port"
 echo "Token: $(<"$token_file")"
 echo "Token file: $token_file"
 echo "Status: systemctl --user status codex-task.service"
-echo "For boot-time start before login, an administrator may run: loginctl enable-linger $USER"
+echo "User linger: enabled for $current_user (service starts before login)."
 case "$service_proxy" in
   auto|AUTO) echo "Proxy: automatic environment/system detection." ;;
   direct|DIRECT|none|NONE|off|OFF) echo "Proxy: disabled; Direct requests connect directly." ;;
