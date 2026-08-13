@@ -7,11 +7,57 @@ import { appPaths } from "../../paths.js";
 import { atomicWrite } from "../../fs-utils.js";
 
 export interface DirectIdentity {
+  tls: DirectTlsProfile;
   installationId: string;
   codexVersion: string;
   osType: string;
   osVersion: string;
   arch: string;
+}
+
+export interface DirectTlsProfile {
+  label: string;
+  ja3: string;
+  akamai: string;
+}
+
+/**
+ * Explicit profiles supported by @ossiana/node-libcurl. `auto` is intentionally
+ * avoided: its platform-dependent choice is rejected by ChatGPT's frontend on
+ * some Linux hosts even when the same OAuth account and proxy work in Codex CLI.
+ */
+export const DIRECT_TLS_PROFILES: readonly DirectTlsProfile[] = [
+  { label: "chrome131", ja3: "chrome131", akamai: "chrome119" },
+  { label: "chrome133", ja3: "chrome133", akamai: "chrome119" },
+  { label: "chrome150", ja3: "chrome150", akamai: "chrome119" },
+];
+
+export const DEFAULT_DIRECT_TLS_PROFILE: DirectTlsProfile = DIRECT_TLS_PROFILES.at(-1)!;
+
+function pickTlsProfile(): DirectTlsProfile {
+  return { ...DEFAULT_DIRECT_TLS_PROFILE };
+}
+
+function isTlsProfile(value: unknown): value is DirectTlsProfile {
+  if (!value || typeof value !== "object") return false;
+  const profile = value as Record<string, unknown>;
+  return typeof profile["label"] === "string" &&
+    typeof profile["ja3"] === "string" && profile["ja3"] !== "auto" &&
+    typeof profile["akamai"] === "string" && profile["akamai"] !== "auto";
+}
+
+/** Returns the persisted profile, or the profile a future Direct request will persist. */
+export function inspectDirectTlsProfile(): DirectTlsProfile {
+  const path = appPaths().identityPath;
+  if (existsSync(path)) {
+    try {
+      const value = JSON.parse(readFileSync(path, "utf8")) as { tls?: unknown };
+      if (isTlsProfile(value.tls)) return value.tls;
+    } catch {
+      // Report the migration default without mutating invalid state.
+    }
+  }
+  return { ...DEFAULT_DIRECT_TLS_PROFILE };
 }
 
 function detectCodexVersion(codexHome: string): string {
@@ -63,13 +109,19 @@ export function loadOrCreateIdentity(codexHome: string): DirectIdentity {
   const path = appPaths().identityPath;
   if (existsSync(path)) {
     try {
-      const value = JSON.parse(readFileSync(path, "utf8")) as DirectIdentity;
-      if (value.installationId && value.codexVersion) return value;
+      const value = JSON.parse(readFileSync(path, "utf8")) as Partial<DirectIdentity>;
+      if (value.installationId && value.codexVersion && value.osType && value.osVersion && value.arch) {
+        if (isTlsProfile(value.tls)) return value as DirectIdentity;
+        const migrated: DirectIdentity = { ...value as Omit<DirectIdentity, "tls">, tls: pickTlsProfile() };
+        atomicWrite(path, JSON.stringify(migrated, null, 2), 0o600);
+        return migrated;
+      }
     } catch {
       // Replace invalid state.
     }
   }
   const identity: DirectIdentity = {
+    tls: pickTlsProfile(),
     installationId: detectInstallationId(codexHome),
     codexVersion: detectCodexVersion(codexHome),
     ...platformInfo(),

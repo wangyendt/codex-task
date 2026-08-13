@@ -80,7 +80,7 @@ codex-task skill path
 ### 5.3 Direct 后端
 
 - 读取 `$CODEX_HOME/auth.json`，过期时加锁刷新并原子合并写回。
-- 使用 native libcurl impersonation、HTTP/2、Codex headers、installation identity 和 SSE。
+- 使用 native libcurl impersonation、HTTP/2、Codex headers、installation identity 和 SSE；每个安装持久化显式现代 Chrome TLS/HTTP2 profile，不使用平台相关的 `auto` 指纹。
 - 文本请求可同时发送 `input_text` 和 `input_image`。
 - 支持 classic Responses 与 Responses Lite encoder。
 - 模型顺序：显式参数 → Codex config → Codex model cache → compatibility fallback。

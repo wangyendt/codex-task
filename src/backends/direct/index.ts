@@ -26,8 +26,15 @@ function emit(callback: ((event: TaskEvent) => void) | undefined, event: TaskEve
   callback?.(event);
 }
 
-function mapHttpError(status: number, body: string): CodexTaskError {
+export function mapDirectHttpError(status: number, body: string): CodexTaskError {
   const detail = body.slice(0, 500);
+  if (status === 403 && /^\s*(?:<!doctype\s+html|<html)\b/i.test(body)) {
+    return new CodexTaskError(
+      "DIRECT_UPSTREAM_BLOCKED",
+      "Direct request was blocked by the ChatGPT frontend with HTTP 403",
+      { details: detail },
+    );
+  }
   if (status === 401 || status === 403) {
     return new CodexTaskError("DIRECT_AUTH_FAILED", `Direct authentication failed with HTTP ${status}`, {
       details: detail,
@@ -71,14 +78,14 @@ async function sendOnce(
   signal: AbortSignal | undefined,
 ): Promise<ParsedDirectResponse> {
   if (signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-  const session = new ImpersonatedSession(timeoutMs, proxy);
+  const session = new ImpersonatedSession(timeoutMs, proxy, context.identity.tls);
   const abort = (): void => session.close();
   signal?.addEventListener("abort", abort, { once: true });
   try {
     const request = buildDirectRequest(context, spec);
     const response = await session.post(RESPONSES_URL, request.headers, JSON.stringify(request.body));
     if (signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-    if (response.status !== 200) throw mapHttpError(response.status, response.text);
+    if (response.status !== 200) throw mapDirectHttpError(response.status, response.text);
     const parsed = parseDirectResponse(response.text);
     if (!parsed.text && !parsed.image) {
       throw new CodexTaskError("DIRECT_EMPTY_RESPONSE", "Direct backend returned an empty response", {
@@ -121,11 +128,12 @@ async function contextForRequest(
   codexHome: string,
   proxy: string | undefined,
 ): Promise<Parameters<typeof buildDirectRequest>[0]> {
-  const auth = await ensureDirectAuth(codexHome, proxy);
+  const identity = loadOrCreateIdentity(codexHome);
+  const auth = await ensureDirectAuth(codexHome, proxy, identity.tls);
   return {
     accessToken: auth.accessToken,
     accountId: auth.accountId,
-    identity: loadOrCreateIdentity(codexHome),
+    identity,
     sessionId: randomUUID(),
     threadId: randomUUID(),
   };

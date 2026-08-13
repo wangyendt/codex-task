@@ -14,6 +14,7 @@ const context: DirectRequestContext = {
   accessToken: "secret",
   accountId: "account",
   identity: {
+    tls: { label: "chrome150", ja3: "chrome150", akamai: "chrome119" },
     installationId: "install",
     codexVersion: "0.147.0",
     osType: "macOS",

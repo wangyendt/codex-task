@@ -165,7 +165,7 @@ printf '%s' "总热量控制在 700 kcal 内" | codex-task text "制定调整建
 | 本地 Codex skills | 不支持 | 按 Codex 正常发现 |
 | 底层 | 非官方 ChatGPT Codex Responses | 官方 `@openai/codex-sdk` |
 
-Direct 复用 `$CODEX_HOME/auth.json`、Codex installation metadata、TLS impersonation 和 ChatGPT 私有 Codex Responses 接口。输入仍会发往 ChatGPT，接口可能随时变化。Direct 只返回生成结果，不能读项目、运行 shell、调用本地 MCP 或使用 worker skills。
+Direct 复用 `$CODEX_HOME/auth.json`、Codex installation metadata、TLS impersonation 和 ChatGPT 私有 Codex Responses 接口。每个安装会持久化一个显式的现代 Chrome TLS/HTTP2 profile，避免 native transport 的平台相关 `auto` 指纹在 Linux 上触发 HTML 403；`codex-task doctor` 会显示当前 profile。输入仍会发往 ChatGPT，接口可能随时变化。Direct 只返回生成结果，不能读项目、运行 shell、调用本地 MCP 或使用 worker skills。
 
 SDK task 默认权限为：
 

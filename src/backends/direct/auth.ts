@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { atomicWrite, withFileLock } from "../../fs-utils.js";
 import { CodexTaskError } from "../../errors.js";
 import { ImpersonatedSession } from "./http.js";
+import type { DirectTlsProfile } from "./identity.js";
 
 interface AuthTokens {
   access_token: string;
@@ -75,8 +76,8 @@ function tokensFromDocument(document: Record<string, unknown>): AuthTokens {
   };
 }
 
-async function refreshTokens(refreshToken: string, proxy?: string): Promise<AuthTokens> {
-  const session = new ImpersonatedSession(15_000, proxy);
+async function refreshTokens(refreshToken: string, proxy?: string, tls?: DirectTlsProfile): Promise<AuthTokens> {
+  const session = new ImpersonatedSession(15_000, proxy, tls);
   try {
     const response = await session.post(
       TOKEN_REFRESH_URL,
@@ -103,6 +104,7 @@ async function refreshTokens(refreshToken: string, proxy?: string): Promise<Auth
 export async function ensureDirectAuth(
   codexHome: string,
   proxy?: string,
+  tls?: DirectTlsProfile,
 ): Promise<{ accessToken: string; accountId: string; expiresAt?: number | undefined }> {
   const initial = tokensFromDocument(loadAuthDocument(codexHome));
   if (!isTokenExpired(initial.access_token)) {
@@ -129,7 +131,7 @@ export async function ensureDirectAuth(
         expiresAt: tokenExpiry(latest.access_token),
       };
     }
-    const refreshed = await refreshTokens(latest.refresh_token || initial.refresh_token, proxy);
+    const refreshed = await refreshTokens(latest.refresh_token || initial.refresh_token, proxy, tls);
     if (!refreshed.access_token) {
       throw new CodexTaskError("AUTH_REFRESH_FAILED", "Codex token refresh returned no access token");
     }

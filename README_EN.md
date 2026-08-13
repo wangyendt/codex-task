@@ -115,7 +115,7 @@ Text is composed in a stable order: positional prompt, prompt files in command-l
 | Local Codex skills | No | Normal Codex discovery |
 | Transport | Unofficial ChatGPT Codex Responses | Official `@openai/codex-sdk` |
 
-Direct reuses `$CODEX_HOME/auth.json`, Codex installation metadata, TLS impersonation, and the private ChatGPT Codex Responses endpoint. Inputs are still sent to ChatGPT, and the interface may change without notice. Direct cannot read a repository, run local tools, call local MCP, or use worker skills.
+Direct reuses `$CODEX_HOME/auth.json`, Codex installation metadata, TLS impersonation, and the private ChatGPT Codex Responses endpoint. Each installation persists an explicit modern Chrome TLS/HTTP2 profile instead of relying on the native transport's platform-dependent `auto` fingerprint, which can trigger an HTML 403 on Linux. `codex-task doctor` shows the active profile. Inputs are still sent to ChatGPT, and the interface may change without notice. Direct cannot read a repository, run local tools, call local MCP, or use worker skills.
 
 SDK tasks default to `sandbox=danger-full-access`, `approval=never`, and `network=true`. With these settings, the worker can access paths outside the workspace, run commands, and use the network without waiting for approval. Delegate only trusted prompts and projects; use `--sandbox workspace-write` or `--no-network` when needed.
 
@@ -208,7 +208,7 @@ npm run verify
 
 `verify` runs lint, workflow checks, type checking, tests, build, package inspection, and a clean install/import smoke test. Live Direct endpoint tests are manual-only: `RUN_DIRECT_E2E=1 npm run test:e2e`.
 
-Every push to `main` publishes a patch release. See [release setup](./docs/RELEASING.md).
+Core package changes pushed to `main` publish a patch release; documentation-only changes do not. See [release setup](./docs/RELEASING.md).
 
 The Direct backend derives in part from MIT-licensed [`lawrencewzen/imgen`](https://github.com/lawrencewzen/imgen); see [third-party notices](./THIRD_PARTY_NOTICES.md).
 

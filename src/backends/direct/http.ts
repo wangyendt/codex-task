@@ -1,6 +1,10 @@
 import { createRequire } from "node:module";
 import { CodexTaskError } from "../../errors.js";
 import { resolveEffectiveProxy } from "../../system-proxy.js";
+import {
+  DEFAULT_DIRECT_TLS_PROFILE,
+  type DirectTlsProfile,
+} from "./identity.js";
 
 const require = createRequire(import.meta.url);
 
@@ -52,19 +56,31 @@ export interface HttpResponse {
   text: string;
 }
 
+export function directSessionOptions(
+  timeoutMs: number,
+  proxy: string | undefined,
+  tls: DirectTlsProfile,
+): Record<string, unknown> {
+  const effectiveProxy = resolveEffectiveProxy({ configuredProxy: proxy });
+  return {
+    ja3: tls.ja3,
+    akamai: tls.akamai,
+    httpVersion: "http2",
+    redirect: false,
+    timeout: Math.max(1, Math.ceil(timeoutMs / 1000)),
+    ...(effectiveProxy ? { proxy: effectiveProxy } : {}),
+  };
+}
+
 export class ImpersonatedSession {
   private readonly session: NativeSession;
 
-  constructor(timeoutMs: number, proxy?: string) {
-    const effectiveProxy = resolveEffectiveProxy({ configuredProxy: proxy });
-    this.session = loadRequests().session({
-      ja3: "auto",
-      akamai: "auto",
-      httpVersion: "http2",
-      redirect: false,
-      timeout: Math.max(1, Math.ceil(timeoutMs / 1000)),
-      ...(effectiveProxy ? { proxy: effectiveProxy } : {}),
-    });
+  constructor(
+    timeoutMs: number,
+    proxy?: string,
+    tls: DirectTlsProfile = DEFAULT_DIRECT_TLS_PROFILE,
+  ) {
+    this.session = loadRequests().session(directSessionOptions(timeoutMs, proxy, tls));
   }
 
   async post(url: string, headers: Record<string, string>, body: string): Promise<HttpResponse> {

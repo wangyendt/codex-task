@@ -6,6 +6,7 @@ import { appPaths, defaultCodexHome } from "./paths.js";
 import { directTransportAvailable } from "./backends/direct/http.js";
 import { inspectDirectAuth } from "./backends/direct/auth.js";
 import { resolveDirectImageModel, resolveDirectModel } from "./backends/direct/models.js";
+import { inspectDirectTlsProfile } from "./backends/direct/identity.js";
 import type { DoctorCheck, DoctorReport } from "./types.js";
 
 function codexVersion(): string | undefined {
@@ -38,6 +39,14 @@ export function runDoctor(codexHome = defaultCodexHome()): DoctorReport {
     message: transport
       ? "Native Direct transport is available"
       : "Native Direct transport is unavailable; SDK backend can still be used",
+  });
+
+  const tls = inspectDirectTlsProfile();
+  checks.push({
+    name: "direct-fingerprint",
+    status: "ok",
+    message: `${tls.label} TLS / ${tls.akamai} HTTP/2`,
+    details: { ja3: tls.ja3, akamai: tls.akamai },
   });
 
   const auth = inspectDirectAuth(codexHome);
