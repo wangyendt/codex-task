@@ -159,7 +159,7 @@ function addCommonOptions(
     : command.addOption(new Option("--backend <backend>").choices(["sdk"]).hideHelp());
   configured = configured
     .option("-f, --prompt-file <path>", "append a UTF-8 prompt file; repeatable", collect, [])
-    .option("-i, --image <path>", "attach a local image; repeat up to five times", collect, [])
+    .option("-i, --image <path>", "attach a local image; repeat for multiple images", collect, [])
     .option("--model <model>", "model override")
     .addOption(
       new Option("--reasoning <effort>", "reasoning effort").choices([

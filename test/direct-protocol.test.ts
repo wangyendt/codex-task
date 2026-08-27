@@ -76,3 +76,20 @@ test("text request sends local images as multimodal input", () => {
     rmSync(root, { recursive: true, force: true });
   }
 });
+
+test("Direct wire request preserves all twelve image inputs", () => {
+  const root = mkdtempSync(join(tmpdir(), "codex-task-wire-many-"));
+  try {
+    const imagePaths = Array.from({ length: 12 }, (_, index) => {
+      const path = join(root, `${index}.png`);
+      writeFileSync(path, `frame-${index}`);
+      return path;
+    });
+    const request = buildDirectRequest(context, { kind: "text", prompt: "all frames", imagePaths, model: model(true) });
+    const user = (request.body["input"] as Array<Record<string, unknown>>).find((item) => item["role"] === "user");
+    const images = (user?.["content"] as Array<Record<string, unknown>>).filter((item) => item["type"] === "input_image");
+    assert.equal(images.length, 12);
+    assert.deepEqual(images.map((item) => item["image_url"]), Array.from({ length: 12 }, (_, index) =>
+      `data:image/png;base64,${Buffer.from(`frame-${index}`).toString("base64")}`));
+  } finally { rmSync(root, { recursive: true, force: true }); }
+});

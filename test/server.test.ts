@@ -364,3 +364,43 @@ test("service keeps excess remote jobs queued until a worker slot is available",
     await server.close();
   }
 });
+
+for (const endpoint of ["/v1/text", "/v1/image", "/v1/task", "/v1/tasks/11111111-1111-4111-8111-111111111111/resume"]) {
+  test(`${endpoint} forwards more than five images in upload order`, async () => {
+    const server = await startCodexTaskServer({
+      host: "127.0.0.1", port: 0, token: TOKEN,
+      run: async (request) => {
+        const paths = request.options.imagePaths ?? [];
+        assert.equal(paths.length, 12);
+        assert.deepEqual(paths.map((path) => readFileSync(path, "utf8")),
+          Array.from({ length: 12 }, (_, index) => `frame-${index}`));
+        return {
+          status: "completed", taskId: "11111111-1111-4111-8111-111111111111",
+          backend: request.kind === "task" || request.kind === "resume" ? "sdk" : "direct",
+          text: "all-12-inputs-received", artifacts: [],
+        };
+      },
+    });
+    try {
+      const submitted = await fetch(`${server.url}${endpoint}`, {
+        method: "POST", headers: authHeaders(), body: JSON.stringify({
+          prompt: "Use every frame", images: Array.from({ length: 12 }, (_, index) => ({
+            mimeType: "image/png", dataBase64: Buffer.from(`frame-${index}`).toString("base64"),
+          })),
+        }),
+      });
+      assert.equal(submitted.status, 202);
+      const receipt = await submitted.json() as { statusUrl: string };
+      let snapshot: Record<string, unknown> = {};
+      for (let attempt = 0; attempt < 20; attempt += 1) {
+        snapshot = await (await fetch(`${server.url}${receipt.statusUrl}`, { headers: authHeaders() })).json() as Record<string, unknown>;
+        if (snapshot["status"] === "completed") break;
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+      assert.equal(snapshot["status"], "completed");
+      assert.equal((snapshot["result"] as Record<string, unknown>)["text"], "all-12-inputs-received");
+    } finally {
+      await server.close();
+    }
+  });
+}

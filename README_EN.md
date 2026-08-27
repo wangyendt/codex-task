@@ -101,7 +101,7 @@ The positional prompt, repeated `-f/--prompt-file`, non-empty stdin, and repeate
 printf '%s' "Keep the meal under 700 kcal" | codex-task text "Recommend adjustments" -f ./training-goal.md -f ./allergies.md -i ./meal-front.png -i ./meal-side.png
 ```
 
-Text is composed in a stable order: positional prompt, prompt files in command-line order, then stdin. Prompt files are wrapped with absolute-path boundaries. Images preserve `-i` order. Up to five PNG/JPEG/WebP/GIF images are accepted; each may be 20 MiB and the combined limit is 50 MiB.
+Text is composed in a stable order: positional prompt, prompt files in command-line order, then stdin. Prompt files are wrapped with absolute-path boundaries. Images preserve `-i` order. PNG/JPEG/WebP/GIF inputs have no local image-count cap; each may be 20 MiB and the combined limit is 50 MiB. Upstream model or service limits still apply.
 
 ## Direct and SDK backends
 

@@ -10,13 +10,15 @@ CodexTask 让 Codex、Claude Code、Gemini CLI 或你自己的程序把任务交
 
 | 期望结果 | 命令 | 可组合输入 | 典型任务 |
 | --- | --- | --- | --- |
-| 文本 | `codex-task text` | 文本、多个 prompt 文件、最多 5 张图片、stdin | 文生文、图生文、图文生文 |
-| 图片 | `codex-task image` | 文本、多个 prompt 文件、最多 5 张参考图、stdin | 文生图、图生图、图文生图 |
-| 工作区变更 | `codex-task task` | 文本、多个 prompt 文件、最多 5 张图片、当前项目 | 写代码、改文件、运行命令 |
+| 文本 | `codex-task text` | 文本、多个 prompt 文件、多张图片、stdin | 文生文、图生文、图文生文 |
+| 图片 | `codex-task image` | 文本、多个 prompt 文件、多张参考图、stdin | 文生图、图生图、图文生图 |
+| 工作区变更 | `codex-task task` | 文本、多个 prompt 文件、多张图片、当前项目 | 写代码、改文件、运行命令 |
 | 恢复任务 | `codex-task resume` | task ID、补充文本/文件/图片 | 回答追问后继续同一个 Codex task |
 
 > [!IMPORTANT]
 > CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认可或赞助关系。Codex 与 OpenAI 为 OpenAI 的商标。
+
+输入图片不设本地张数硬限制；保留单张 20 MiB、合计 50 MiB 和 HTTP 请求体大小保护。上游模型或服务的实际限制会如实返回。
 
 ## 30 秒上手
 
@@ -191,6 +193,8 @@ codex-task gc
 ```
 
 图片参数：`size=auto|WIDTHxHEIGHT`（宽高为正整数，不设本地上限）、`quality=auto|low|medium|high`、`background=auto|opaque|transparent`、`count=1–10`、`concurrency=1–3`。自定义尺寸会原样交给后端；模型不支持时返回后端错误。
+
+输入图片不设本地张数硬限制；仍保留单张 20 MiB、合计 50 MiB 及 HTTP 请求体大小保护。上游模型或服务的实际限制会如实返回。
 
 ## 安装给其他 Agent
 

@@ -44,7 +44,7 @@ CodexTask 是独立的非官方开源项目，与 OpenAI 不存在隶属、认�
 - 文本组合顺序固定为：位置 prompt → prompt 文件命令行顺序 → stdin。
 - 多个 prompt 文件分别带绝对路径边界标记，防止长内容相互混淆。
 - prompt、prompt 文件和 stdin 不互斥。
-- 图片保持 `-i` 顺序；最多 5 张。
+- 图片保持 `-i` 顺序；不设本地张数硬限制，保留单张 20 MiB、总计 50 MiB 大小保护。
 - 至少需要一个非空文本来源；图片用于补充视觉上下文。
 - CLI 与 TypeScript API 使用相同的解析、验证和后端映射。
 
@@ -146,7 +146,7 @@ codex-task skill path
 - 设备 Token 只以哈希形式落盘；完整 Token 仅在创建时返回。
 - 对外提供异步 `text`、`image`、`task`、`resume` 提交，job 轮询和鉴权 artifact 下载。
 - 提交立即返回 `202 + jobId + statusUrl`，避免移动网络长连接承载完整模型调用。
-- 远端请求支持 inline prompt、最多 20 份命名 prompt 文档，以及最多 5 张 base64 图片；不允许客户端提交服务器本地输入路径。
+- 远端请求支持 inline prompt、最多 20 份命名 prompt 文档，以及多张 base64 图片（不设本地张数硬限制）；不允许客户端提交服务器本地输入路径。
 - 图片上传仅在任务运行期间物化到 `os.tmpdir()/codex-task/server/<job-id>`，终态后删除整个上传目录。
 - 远程 image 产物使用受管临时输出；artifact URL 隐藏服务器绝对路径，默认随终态 job 保留 24 小时。
 - job 队列只存在内存；服务重启后旧 job URL 不可查询。底层 SDK `needs_input` task metadata 仍按现有规则保存，调用方必须自行保留 task ID。

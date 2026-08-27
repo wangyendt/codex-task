@@ -191,7 +191,7 @@ function decodeBase64(value: string): Buffer {
 function materializeImages(jobId: string, body: Record<string, unknown>): { paths: string[]; uploadDir?: string } {
   const images = body["images"];
   if (images === undefined) return { paths: [] };
-  if (!Array.isArray(images) || images.length > 5) throw new Error("INVALID_IMAGES");
+  if (!Array.isArray(images)) throw new Error("INVALID_IMAGES");
   const uploadDir = join(appPaths().tempDir, "server", jobId);
   const inputDir = join(uploadDir, "inputs");
   const decoded: Array<{ bytes: Buffer; extension: string }> = [];

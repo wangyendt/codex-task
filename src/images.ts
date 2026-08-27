@@ -29,7 +29,6 @@ export interface ValidatedImageOptions {
 
 export function validateInputImages(paths: string[] | undefined): string[] {
   const imagePaths = (paths ?? []).map((path) => resolve(path));
-  if (imagePaths.length > 5) throw usageError("at most 5 input images are supported");
   let totalBytes = 0;
   for (const path of imagePaths) {
     if (!existsSync(path)) throw usageError(`input image does not exist: ${path}`);

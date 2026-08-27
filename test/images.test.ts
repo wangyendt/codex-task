@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { closeSync, ftruncateSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
@@ -78,4 +78,34 @@ test("temporary image output cannot also name a durable destination", () => {
     () => validateImageOptions({ prompt: "meal", temporary: true, output: "./meal.png" }),
     /--temp cannot be combined with --output/,
   );
+});
+
+test("reference inputs preserve more than five images in order", () => {
+  const directory = mkdtempSync(join(tmpdir(), "codex-task-many-inputs-"));
+  try {
+    const paths = Array.from({ length: 12 }, (_, index) => {
+      const path = join(directory, `input-${index}.png`);
+      writeFileSync(path, `frame-${index}`);
+      return path;
+    });
+    assert.deepEqual(validateImageOptions({ prompt: "All frames", imagePaths: paths }).imagePaths, paths);
+  } finally {
+    rmSync(directory, { recursive: true, force: true });
+  }
+});
+
+test("removing the count cap retains per-file and aggregate byte limits", () => {
+  const directory = mkdtempSync(join(tmpdir(), "codex-task-image-bytes-"));
+  const sparse = (name: string, bytes: number): string => {
+    const path = join(directory, name);
+    const fd = openSync(path, "w");
+    try { ftruncateSync(fd, bytes); } finally { closeSync(fd); }
+    return path;
+  };
+  try {
+    const huge = sparse("huge.png", 20 * 1024 * 1024 + 1);
+    assert.throws(() => validateImageOptions({ prompt: "x", imagePaths: [huge] }), /20 MiB/);
+    const files = Array.from({ length: 6 }, (_, index) => sparse(`${index}.png`, 9 * 1024 * 1024));
+    assert.throws(() => validateImageOptions({ prompt: "x", imagePaths: files }), /50 MiB/);
+  } finally { rmSync(directory, { recursive: true, force: true }); }
 });

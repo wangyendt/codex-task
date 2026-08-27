@@ -37,7 +37,7 @@ All result commands accept these together:
 - positional text;
 - repeatable `-f/--prompt-file` for long prompt files;
 - non-empty stdin;
-- repeatable `-i/--image`, up to five local images.
+- repeatable `-i/--image`, with no local image-count cap (20 MiB per file, 50 MiB total).
 
 Use prompt files instead of shell substitution for long content. Preserve file and image order when order affects meaning.
 
