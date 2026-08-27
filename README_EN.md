@@ -174,7 +174,7 @@ The repository installers remain available for first-time installation. They ins
 | macOS | `bash ./scripts/service/install.sh` | LaunchAgent at login |
 | Windows | `powershell -ExecutionPolicy Bypass -File .\scripts\service\Install-Windows.ps1` | Scheduled Task at login |
 
-The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, plus job polling and authenticated artifact downloads.
+The installers bind to `0.0.0.0:7777`, generate a protected Service Token, and print both. A phone must use the computer's reachable LAN or VPN address, not `0.0.0.0`. The API provides `POST /v1/text`, `/v1/image`, `/v1/task`, `/v1/tasks/:taskId/resume`, job cancellation at `POST /v1/jobs/:jobId/cancel`, plus job polling and authenticated artifact downloads.
 
 The scripts accept `CODEX_TASK_SERVICE_PROXY=auto`, `direct`, or a complete proxy URL, and retain compatibility with `CODEX_TASK_PROXY` / `CODEXERRAND_PROXY`. A fixed URL is stored only in the protected service runner and its value is not printed.
 

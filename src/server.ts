@@ -35,9 +35,11 @@ type RemoteJobStatus = "queued" | "running" | TaskResult["status"];
 interface RemoteJob {
   jobId: string;
   kind: TaskRequest["kind"];
+  backend: "direct" | "sdk";
   status: RemoteJobStatus;
   createdAt: string;
   updatedAt: string;
+  controller: AbortController;
   result?: TaskResult | undefined;
   uploadDir?: string | undefined;
 }
@@ -253,6 +255,20 @@ function jobSnapshot(job: RemoteJob): Record<string, unknown> {
   };
 }
 
+function cancelledResult(job: RemoteJob): TaskResult {
+  return {
+    status: "cancelled",
+    taskId: job.jobId,
+    backend: job.backend,
+    artifacts: [],
+    error: {
+      code: "CANCELLED",
+      message: "Remote job was cancelled",
+      retryable: false,
+    },
+  };
+}
+
 export async function startCodexTaskServer(
   options: CodexTaskServerOptions = {},
 ): Promise<RunningCodexTaskServer> {
@@ -274,6 +290,11 @@ export async function startCodexTaskServer(
   const pending: Array<{ job: RemoteJob; request: TaskRequest }> = [];
   let active = 0;
 
+  const scheduleExpiry = (job: RemoteJob): void => {
+    const expiry = setTimeout(() => jobs.delete(job.jobId), jobTtlMs);
+    expiry.unref();
+  };
+
   const drain = (): void => {
     while (active < maxConcurrency && pending.length > 0) {
       const next = pending.shift();
@@ -284,11 +305,13 @@ export async function startCodexTaskServer(
       job.updatedAt = new Date().toISOString();
       void run(taskRequest)
         .then((result) => {
+          if (job.status === "cancelled") return;
           job.status = result.status;
           job.result = result;
           job.updatedAt = new Date().toISOString();
         })
         .catch((error: unknown) => {
+          if (job.status === "cancelled") return;
           const normalized = asCodexTaskError(error);
           job.status = "failed";
           job.result = {
@@ -307,15 +330,18 @@ export async function startCodexTaskServer(
         .finally(() => {
           if (job.uploadDir) rmSync(job.uploadDir, { recursive: true, force: true });
           active -= 1;
-          const expiry = setTimeout(() => jobs.delete(job.jobId), jobTtlMs);
-          expiry.unref();
+          scheduleExpiry(job);
           drain();
         });
     }
   };
 
   const execute = (job: RemoteJob, taskRequest: TaskRequest): void => {
-    pending.push({ job, request: taskRequest });
+    const requestWithSignal = {
+      ...taskRequest,
+      options: { ...taskRequest.options, signal: job.controller.signal },
+    } as TaskRequest;
+    pending.push({ job, request: requestWithSignal });
     queueMicrotask(drain);
   };
 
@@ -363,9 +389,11 @@ export async function startCodexTaskServer(
         const job: RemoteJob = {
           jobId: randomUUID(),
           kind: "text",
+          backend: body["backend"] === "sdk" ? "sdk" : "direct",
           status: "queued",
           createdAt: now,
           updatedAt: now,
+          controller: new AbortController(),
         };
         const uploaded = materializeImages(job.jobId, body);
         uploadDir = uploaded.uploadDir;
@@ -406,9 +434,11 @@ export async function startCodexTaskServer(
         const job: RemoteJob = {
           jobId: randomUUID(),
           kind: "image",
+          backend: body["backend"] === "sdk" ? "sdk" : "direct",
           status: "queued",
           createdAt: now,
           updatedAt: now,
+          controller: new AbortController(),
         };
         const uploaded = materializeImages(job.jobId, body);
         job.uploadDir = uploaded.uploadDir;
@@ -450,9 +480,11 @@ export async function startCodexTaskServer(
         const job: RemoteJob = {
           jobId: randomUUID(),
           kind: "task",
+          backend: "sdk",
           status: "queued",
           createdAt: now,
           updatedAt: now,
+          controller: new AbortController(),
         };
         const uploaded = materializeImages(job.jobId, body);
         job.uploadDir = uploaded.uploadDir;
@@ -498,9 +530,11 @@ export async function startCodexTaskServer(
         const job: RemoteJob = {
           jobId: randomUUID(),
           kind: "resume",
+          backend: "sdk",
           status: "queued",
           createdAt: now,
           updatedAt: now,
+          controller: new AbortController(),
         };
         const uploaded = materializeImages(job.jobId, body);
         job.uploadDir = uploaded.uploadDir;
@@ -527,6 +561,37 @@ export async function startCodexTaskServer(
           error: { code: message, message: "Resume request is invalid" },
         });
       }
+      return;
+    }
+    const cancelMatch = request.method === "POST"
+      ? url.pathname.match(/^\/v1\/jobs\/([0-9a-f-]{36})\/cancel$/i)
+      : null;
+    if (cancelMatch) {
+      const job = jobs.get(cancelMatch[1] ?? "");
+      if (!job) {
+        writeJson(response, 404, { error: { code: "JOB_NOT_FOUND", message: "Remote job not found" } });
+        return;
+      }
+      if (principal && !principalAllows(principal, job.kind)) {
+        writeJson(response, 403, {
+          error: { code: "FORBIDDEN", message: `Service Token does not allow ${job.kind} requests` },
+        });
+        return;
+      }
+      if (job.status === "queued" || job.status === "running") {
+        const pendingIndex = pending.findIndex((entry) => entry.job.jobId === job.jobId);
+        if (pendingIndex >= 0) pending.splice(pendingIndex, 1);
+        job.controller.abort();
+        job.status = "cancelled";
+        job.result = cancelledResult(job);
+        job.updatedAt = new Date().toISOString();
+        if (pendingIndex >= 0) {
+          if (job.uploadDir) rmSync(job.uploadDir, { recursive: true, force: true });
+          scheduleExpiry(job);
+          queueMicrotask(drain);
+        }
+      }
+      writeJson(response, 200, jobSnapshot(job));
       return;
     }
     const jobMatch = request.method === "GET" ? url.pathname.match(/^\/v1\/jobs\/([0-9a-f-]{36})$/i) : null;

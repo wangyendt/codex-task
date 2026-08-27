@@ -22,7 +22,7 @@ codex-task token create --name meal-app --allow text,image
 4. `POST /v1/task`：把营养 JSON、参考图片和服务器上的项目目录交给 Codex SDK 修改。
 5. 如果返回 `needs_input`，使用 `result.taskId` 调用 `POST /v1/tasks/:taskId/resume`。
 
-所有提交先返回 `202`、`jobId` 和 `statusUrl`。客户端轮询 `GET statusUrl`，直到 `completed`、`needs_input`、`failed` 或 `cancelled`。这种设计不会让手机保持一个可能持续数十分钟的 HTTP 请求。
+所有提交先返回 `202`、`jobId` 和 `statusUrl`。客户端轮询 `GET statusUrl`，直到 `completed`、`needs_input`、`failed` 或 `cancelled`；需要主动停止时调用 `POST {statusUrl}/cancel`。这种设计不会让手机保持一个可能持续数十分钟的 HTTP 请求。
 
 命名 prompt 文档格式为 `{name, content}`；图片格式为 `{name, mimeType, dataBase64}`。text、image、task 和 resume 都能组合文本、多份文档与多张图片。
 

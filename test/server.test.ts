@@ -122,6 +122,15 @@ test("scoped Service Token can submit only its allowed task kinds", async () => 
       body: JSON.stringify({ prompt: "Admin remains allowed" }),
     });
     assert.equal(adminResponse.status, 202);
+    const adminReceipt = await adminResponse.json() as { statusUrl: string };
+    const forbiddenCancel = await fetch(`${server.url}${adminReceipt.statusUrl}/cancel`, {
+      method: "POST",
+      headers: scopedHeaders,
+    });
+    assert.equal(forbiddenCancel.status, 403);
+    assert.deepEqual(await forbiddenCancel.json(), {
+      error: { code: "FORBIDDEN", message: "Service Token does not allow image requests" },
+    });
   } finally {
     await server.close();
     rmSync(home, { recursive: true, force: true });
@@ -361,6 +370,110 @@ test("service keeps excess remote jobs queued until a worker slot is available",
     assert.equal(firstAfterRelease.status, "completed");
   } finally {
     releaseFirst?.();
+    await server.close();
+  }
+});
+
+test("service cancels a queued remote job without starting it", async () => {
+  let releaseFirst: (() => void) | undefined;
+  let calls = 0;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const server = await startCodexTaskServer({
+    host: "127.0.0.1",
+    port: 0,
+    token: TOKEN,
+    maxConcurrency: 1,
+    run: async () => {
+      calls += 1;
+      await firstGate;
+      return {
+        status: "completed",
+        taskId: "11111111-1111-4111-8111-111111111111",
+        backend: "direct",
+        artifacts: [],
+      };
+    },
+  });
+  try {
+    const submit = async (prompt: string): Promise<{ statusUrl: string }> => {
+      const response = await fetch(`${server.url}/v1/text`, {
+        method: "POST",
+        headers: authHeaders(),
+        body: JSON.stringify({ prompt }),
+      });
+      return await response.json() as { statusUrl: string };
+    };
+    await submit("occupy the only worker");
+    const queued = await submit("cancel me before I start");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    const cancelled = await fetch(`${server.url}${queued.statusUrl}/cancel`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    assert.equal(cancelled.status, 200);
+    const snapshot = await cancelled.json() as Record<string, unknown>;
+    assert.equal(snapshot["status"], "cancelled");
+    assert.equal((snapshot["result"] as Record<string, unknown>)["status"], "cancelled");
+    assert.equal(
+      ((snapshot["result"] as Record<string, unknown>)["error"] as Record<string, unknown>)["code"],
+      "CANCELLED",
+    );
+
+    releaseFirst?.();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(calls, 1);
+  } finally {
+    releaseFirst?.();
+    await server.close();
+  }
+});
+
+test("service aborts a running remote job and keeps its terminal status cancelled", async () => {
+  let receivedSignal: AbortSignal | undefined;
+  const server = await startCodexTaskServer({
+    host: "127.0.0.1",
+    port: 0,
+    token: TOKEN,
+    run: async (request) => {
+      receivedSignal = request.options.signal;
+      await new Promise<void>((resolve) => {
+        request.options.signal?.addEventListener("abort", () => resolve(), { once: true });
+      });
+      return {
+        status: "completed",
+        taskId: "22222222-2222-4222-8222-222222222222",
+        backend: "direct",
+        artifacts: [],
+      };
+    },
+  });
+  try {
+    const submitted = await fetch(`${server.url}/v1/image`, {
+      method: "POST",
+      headers: authHeaders(),
+      body: JSON.stringify({ prompt: "cancel while generating" }),
+    });
+    const receipt = await submitted.json() as { statusUrl: string };
+    for (let attempt = 0; attempt < 20 && !receivedSignal; attempt += 1) {
+      await new Promise((resolve) => setTimeout(resolve, 5));
+    }
+
+    const cancelled = await fetch(`${server.url}${receipt.statusUrl}/cancel`, {
+      method: "POST",
+      headers: authHeaders(),
+    });
+    assert.equal(cancelled.status, 200);
+    assert.equal(receivedSignal?.aborted, true);
+    const snapshot = await cancelled.json() as Record<string, unknown>;
+    assert.equal(snapshot["status"], "cancelled");
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    const afterRunnerSettled = await fetch(`${server.url}${receipt.statusUrl}`, { headers: authHeaders() });
+    assert.equal((await afterRunnerSettled.json() as Record<string, unknown>)["status"], "cancelled");
+  } finally {
     await server.close();
   }
 });
