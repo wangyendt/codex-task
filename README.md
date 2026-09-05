@@ -331,7 +331,7 @@ stdout 默认只有一个 JSON 结果；`--stream` 时为 JSONL。诊断写 stde
 
 SDK 默认不覆写 model/reasoning，继续读取正常的 Codex 用户与项目配置。
 
-Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型。当前文本可使用 `gpt-5.6-sol + medium/high`；私有 Responses Lite 路由不暴露托管 `image_generation`，所以 Direct 图片会在请求前选择兼容的 classic `gpt-5.5`。`gpt-5.6-sol` 仍有视觉能力，限制来自这条非官方 Direct 生图协议。JSON 会写入实际使用的 `effectiveModel` 和 `reasoningEffort`。
+Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型，每次请求重新读取配置。文本和识图使用同一个模型。`gpt-6-astra` 的文本/识图遵循缓存中的 Responses Lite 配置，生图则使用已验证支持托管 `image_generation` 的 classic Responses 路径，主模型仍为 Astra。其他 Lite 模型（例如 `gpt-5.6-sol`）的生图继续回退到 classic `gpt-5.5`。这里的主模型负责调用生图工具，底层图像模型由工具服务选择。JSON 会写入实际使用的主模型 `effectiveModel` 和 `reasoningEffort`。
 
 运行 `codex-task doctor` 可查看本机 Direct transport、OAuth、模型解析、Codex CLI/SDK 与真实数据路径，不会发送模型请求。
 

@@ -197,7 +197,7 @@ See the [deployment and API guide](./docs/knowhow/20260811_远程服务部署与
 
 ## Models
 
-SDK mode inherits the normal Codex model and reasoning configuration unless overridden. Direct checks explicit options, Codex config, the model cache, then a compatibility fallback. Direct text can use `gpt-5.6-sol` with medium or high reasoning. The private Responses Lite route does not expose hosted `image_generation`, so Direct image requests use the compatible classic `gpt-5.5`. `gpt-5.6-sol` still supports vision; the incompatibility is limited to this unofficial Direct image protocol.
+SDK mode inherits the normal Codex model and reasoning configuration unless overridden. Direct checks explicit options, Codex config, the model cache, then a compatibility fallback, rereading configuration for each request. Text and vision use the same model. For `gpt-6-astra`, text and vision follow the cached Responses Lite preference, while image generation uses the verified classic Responses path with hosted `image_generation`, keeping Astra as the main model. Other Lite models, such as `gpt-5.6-sol`, still fall back to classic `gpt-5.5` for image generation. The main model calls the image generation tool; the tool service selects the underlying image model. Results report the main model as `effectiveModel`.
 
 ## Development and releases
 

@@ -111,6 +111,11 @@ export function resolveDirectImageModel(
 ): { model: ResolvedDirectModel; replacedLiteModel?: string | undefined } {
   const selected = resolveDirectModel(codexHome, explicitModel, requestedReasoning);
   if (!selected.useResponsesLite) return { model: selected };
+  // Astra also accepts classic Responses with hosted image_generation, even
+  // when the Codex catalog prefers Responses Lite for normal text turns.
+  if (selected.model === "gpt-6-astra") {
+    return { model: { ...selected, useResponsesLite: false } };
+  }
   return {
     model: resolveDirectModel(codexHome, "gpt-5.5", requestedReasoning),
     replacedLiteModel: selected.model,

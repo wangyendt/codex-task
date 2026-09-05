@@ -87,3 +87,31 @@ test("resolveDirectImageModel preflights Lite to a classic image model", () => {
     rmSync(codexHome, { recursive: true, force: true });
   }
 });
+
+test("Astra uses Lite for text and classic hosted image generation without falling back", () => {
+  const codexHome = mkdtempSync(join(tmpdir(), "codex-task-model-test-"));
+  try {
+    writeFileSync(join(codexHome, "config.toml"), 'model = "gpt-6-astra"\n');
+    writeFileSync(
+      join(codexHome, "models_cache.json"),
+      JSON.stringify({
+        models: [{
+          slug: "gpt-6-astra",
+          use_responses_lite: true,
+          supported_reasoning_levels: [{ effort: "medium" }],
+        }],
+      }),
+    );
+    assert.equal(resolveDirectModel(codexHome, undefined).useResponsesLite, true);
+    for (const explicit of [undefined, "gpt-6-astra"]) {
+      const result = resolveDirectImageModel(codexHome, explicit);
+      assert.equal(result.model.model, "gpt-6-astra");
+      assert.equal(result.model.useResponsesLite, false);
+      assert.equal(result.model.reasoning, "medium");
+      assert.equal(result.model.source, explicit ? "explicit" : "codex-config");
+      assert.equal(result.replacedLiteModel, undefined);
+    }
+  } finally {
+    rmSync(codexHome, { recursive: true, force: true });
+  }
+});
