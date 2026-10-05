@@ -1,3 +1,4 @@
+import { knownCatalogModel } from "../../model-catalog.js";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { usageError } from "../../errors.js";
@@ -85,11 +86,11 @@ export function resolveDirectModel(
   }
 
   const info = modelInfo(model, models);
-  const supportedReasoning = info?.supported_reasoning_levels?.map((entry) => entry.effort) ?? [
+  const supportedReasoning = (knownCatalogModel(codexHome, model)?.reasoningLevels ?? info?.supported_reasoning_levels?.map((entry) => entry.effort) ?? [
     "low",
     "medium",
     "high",
-  ];
+  ]) as ReasoningEffort[];
   if (!supportedReasoning.includes(requestedReasoning)) {
     throw usageError(
       `reasoning ${requestedReasoning} is not supported by ${model}; choose ${supportedReasoning.join(", ")}`,

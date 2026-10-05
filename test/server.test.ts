@@ -70,6 +70,7 @@ test("scoped Service Token can submit only its allowed task kinds", async () => 
     port: 0,
     token: TOKEN,
     tokenRegistryPath: join(home, "config", "service", "tokens.json"),
+    readModels: async () => ({ source: "codex-app-server", updatedAt: null, stale: false, models: [{ id: "test", displayName: "Test", reasoningLevels: ["high"], defaultReasoning: "high", inputModalities: ["text"] }] }),
     run: async (request) => ({
       status: "completed",
       taskId: "11111111-1111-4111-8111-111111111111",
@@ -83,6 +84,7 @@ test("scoped Service Token can submit only its allowed task kinds", async () => 
     "content-type": "application/json",
   };
   try {
+    assert.equal((await fetch(`${server.url}/v1/models`, { headers: scopedHeaders })).status, 200);
     const textResponse = await fetch(`${server.url}/v1/text`, {
       method: "POST",
       headers: scopedHeaders,
@@ -517,3 +519,29 @@ for (const endpoint of ["/v1/text", "/v1/image", "/v1/task", "/v1/tasks/11111111
     }
   });
 }
+
+test("model catalog requires authentication and supports refresh without creating tasks", async () => {
+  const catalog = { source: "codex-app-server" as const, updatedAt: "2026-10-05T00:00:00Z", stale: false, models: [{ id: "future", displayName: "Future", reasoningLevels: ["high"], defaultReasoning: "high", inputModalities: ["text"] }] };
+  const refreshes: boolean[] = [];
+  const server = await startCodexTaskServer({ host: "127.0.0.1", port: 0, token: TOKEN,
+    readModels: async (refresh) => { refreshes.push(refresh ?? false); return catalog; },
+    run: async () => { throw new Error("must not run tasks"); },
+  });
+  try {
+    assert.equal((await fetch(`${server.url}/v1/models`)).status, 401);
+    assert.equal(refreshes.length, 0);
+    for (const path of ["/v1/models", "/v1/models?refresh=true"]) {
+      const res = await fetch(`${server.url}${path}`, { headers: authHeaders() });
+      assert.equal(res.status, 200); assert.deepEqual(await res.json(), catalog);
+    }
+    assert.deepEqual(refreshes, [false, true]);
+  } finally { await server.close(); }
+});
+
+test("model catalog returns 503 when no metadata is available", async () => {
+  const server = await startCodexTaskServer({ host: "127.0.0.1", port: 0, token: TOKEN,
+    readModels: async () => ({ source: "codex-model-cache", updatedAt: null, stale: true, models: [] }),
+  });
+  try { assert.equal((await fetch(`${server.url}/v1/models`, { headers: authHeaders() })).status, 503); }
+  finally { await server.close(); }
+});

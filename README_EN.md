@@ -164,6 +164,10 @@ Default stdout is one JSON result; `--stream` produces JSONL item/task progress.
 
 `codex-task serve` exposes text, image, workspace, and resume work as authenticated asynchronous HTTP jobs. After installing CodexTask globally, run `codex-task setup` once to detect macOS, Linux, or Windows, generate a random token, install the native user-level startup entry, and start it immediately. On Linux, setup enables systemd user linger by default so the service starts at boot before login; the first setup may request the user's `sudo` password.
 
+Mobile settings can GET `/v1/models` using the Service Token and build selectors from `models[].id`, `reasoningLevels`, and `defaultReasoning`. `?refresh=true` re-queries the installed Codex CLI, without inference. Normal queries cache for five minutes; explicit refreshes have a 15-second cooldown. A failed query falls back to metadata marked `stale: true`; no usable catalog returns 503. Metadata is not a live model test or an image-generation guarantee.
+
+Update the server's standalone `@openai/codex` CLI, then refresh the selector. No desktop Codex app is needed. This does not upgrade the separately bundled SDK binary; protocol changes may still require a CodexTask update. See the [model catalog API](./docs/reference/models-api.md).
+
 The default proxy mode is `auto`. Every Direct request checks `ALL_PROXY`, `HTTPS_PROXY`, and `HTTP_PROXY`, then the current operating-system proxy. Toggling the system proxy or changing its port does not require reinstalling the service, and no port such as `7890` is assumed. Use `codex-task setup --proxy socks5h://127.0.0.1:PORT` for a fixed proxy or `codex-task setup --no-proxy` to force direct connections. The command also accepts `--host`, `--port`, and `--max-concurrency`. Running it again updates and restarts the service without replacing its existing token.
 
 The repository installers remain available for first-time installation. They install or update `codex-task@latest` before creating the startup entry.

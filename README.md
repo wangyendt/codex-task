@@ -215,6 +215,7 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 
 | 目标 | 接口 |
 | --- | --- |
+| 模型与思考等级 | `GET /v1/models` |
 | 文本结果 | `POST /v1/text` |
 | 图片结果 | `POST /v1/image` |
 | 工作区变更 | `POST /v1/task` |
@@ -222,6 +223,10 @@ skilltruck install https://github.com/wangyendt/codex-task --global
 | 查询进度 | `GET /v1/jobs/:jobId` |
 | 停止任务 | `POST /v1/jobs/:jobId/cancel` |
 | 下载产物 | `GET /v1/jobs/:jobId/artifacts/:index` |
+
+手机设置页可调用 `GET /v1/models`（同样需要 Bearer Token），使用返回的 `models[].id`、`reasoningLevels` 和 `defaultReasoning` 生成选项，不必写死模型名。`?refresh=true` 请求重新查询服务器的 Codex CLI；默认缓存 5 分钟，手动刷新最短间隔 15 秒。CLI 查询失败时返回缓存并标记 `stale: true`，完全没有目录时返回 503。目录是模型声明，不代表逐个实测，也不保证生图兼容性。
+
+服务器应更新 **`@openai/codex` CLI**，然后在手机上刷新模型列表；无需安装 Codex 桌面 App。SDK 模式仍使用 CodexTask 自带的 SDK/CLI，升级独立 CLI 不会升级它。协议或后端能力变化时仍需升级 CodexTask。完整契约见[模型目录 API](./docs/reference/models-api.md)。
 
 已经全局安装 CodexTask 后，运行一次 `codex-task setup` 即可自动识别 macOS、Linux 或 Windows，生成随机 token、创建用户级自启动项并立即启动服务。Linux 会默认启用当前用户的 systemd linger，让服务在机器启动、用户尚未登录时也能运行；首次设置可能要求输入 `sudo` 密码：
 

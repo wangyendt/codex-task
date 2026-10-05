@@ -160,3 +160,9 @@ gh run list --repo wangyendt/codex-task
 gh secret list --repo wangyendt/codex-task
 gh variable list --repo wangyendt/codex-task
 npm view codex-task version dist-tags dist.attestations --json
+
+# === 模型目录：使用已有 Service Token；适用于手机动态选择模型及思考等级。 ===
+curl -fsS http://127.0.0.1:7777/v1/models -H "Authorization: Bearer $CODEX_TASK_TOKEN"
+curl -fsS 'http://127.0.0.1:7777/v1/models?refresh=true' -H "Authorization: Bearer $CODEX_TASK_TOKEN"
+# === hx470：以 wayne 用户升级模型目录使用的 Codex CLI，然后在手机刷新模型列表；不需要桌面 App。 ===
+npm install --global --prefix "$HOME/.local" @openai/codex@latest --registry=https://registry.npmjs.org/ --prefer-online

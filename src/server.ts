@@ -3,6 +3,7 @@ import { createReadStream, existsSync, lstatSync, readdirSync, rmSync, statSync,
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { basename, join } from "node:path";
+import { createModelCatalogReader, type ModelCatalog } from "./model-catalog.js";
 import { dispatch } from "./api.js";
 import { asCodexTaskError } from "./errors.js";
 import { ensureDir } from "./fs-utils.js";
@@ -21,6 +22,7 @@ export interface CodexTaskServerOptions {
   maxBodyBytes?: number | undefined;
   jobTtlMs?: number | undefined;
   run?: RemoteTaskRunner | undefined;
+  readModels?: ((refresh?: boolean) => Promise<ModelCatalog>) | undefined;
 }
 
 export interface RunningCodexTaskServer {
@@ -149,10 +151,8 @@ function remotePrompt(body: Record<string, unknown>): string {
   return parts.join("\n\n");
 }
 
-const REASONING_EFFORTS = new Set<ReasoningEffort>(["none", "low", "medium", "high", "xhigh", "max", "ultra"]);
-
 function remoteCommonOptions(body: Record<string, unknown>): CommonOptions {
-  const reasoning = typeof body["reasoning"] === "string" && REASONING_EFFORTS.has(body["reasoning"] as ReasoningEffort)
+  const reasoning = typeof body["reasoning"] === "string" && /^[a-z][a-z0-9_-]{0,31}$/.test(body["reasoning"])
     ? body["reasoning"] as ReasoningEffort
     : undefined;
   const timeoutMs = typeof body["timeoutMs"] === "number" && Number.isFinite(body["timeoutMs"]) && body["timeoutMs"] > 0
@@ -345,6 +345,7 @@ export async function startCodexTaskServer(
     queueMicrotask(drain);
   };
 
+  const readModels = options.readModels ?? createModelCatalogReader();
   const server = createServer((request, response) => {
     void (async () => {
     const url = new URL(request.url ?? "/", `http://${request.headers.host ?? "localhost"}`);
@@ -359,6 +360,11 @@ export async function startCodexTaskServer(
       writeJson(response, 401, {
         error: { code: "UNAUTHORIZED", message: "A valid Bearer token is required" },
       });
+      return;
+    }
+    if (request.method === "GET" && url.pathname === "/v1/models") {
+      const catalog = await readModels(url.searchParams.get("refresh") === "true");
+      writeJson(response, catalog.models.length ? 200 : 503, catalog);
       return;
     }
     const requestedKind = requestedTaskKind(request.method, url.pathname);

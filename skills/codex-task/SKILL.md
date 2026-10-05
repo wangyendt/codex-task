@@ -107,6 +107,12 @@ Prefer the local CLI. Use the HTTP service only when the user or environment exp
 
 A Service Token may be scoped to `text`, `image`, or both. Scoped Tokens are Direct-only. Use only an endpoint allowed by the supplied Token. A `403 FORBIDDEN` response means the Token is valid but lacks that task or backend permission; do not retry it or fall back to another endpoint. Only a full-access master Token may use SDK or call remote `task` or `resume`.
 
+Before offering model/reasoning choices, GET `/v1/models` with the same Bearer Token. Master and scoped Tokens may read it. Build selectors from `models[].id`, `reasoningLevels` (in returned order), and `defaultReasoning`; do not hardcode model names or effort options. These are advertised metadata, not per-model inference tests or image-generation guarantees. This catalog describes Codex models for Direct selection; the bundled SDK currently accepts only low/medium/high/xhigh.
+
+`?refresh=true` re-queries the server's installed `codex app-server` model/list (no inference). Queries are coalesced, cached for five minutes, and manual refresh is limited to once every 15 seconds. A `stale: true` response is fallback metadata; show its warning. An empty catalog returns 503. Preserve manual model entry because some usable models may not yet be advertised. A custom unknown model currently accepts low/medium/high in Direct.
+
+Operators update the standalone `@openai/codex` CLI on the service host, not the desktop app, then refresh the catalog. CodexTask itself must still be updated for protocol or backend compatibility changes. Do not claim updating the CLI changes the separately bundled SDK binary.
+
 Remote submission is asynchronous:
 
 1. POST JSON to `/v1/text`, `/v1/image`, `/v1/task`, or `/v1/tasks/:taskId/resume` with `Authorization: Bearer <token>`.
