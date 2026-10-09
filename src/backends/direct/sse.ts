@@ -1,3 +1,4 @@
+import { selectionRejection } from "./rejection.js";
 import { CodexTaskError } from "../../errors.js";
 import type { UsageSummary } from "../../types.js";
 
@@ -28,14 +29,18 @@ export function parseSse(text: string): SseEvent[] {
   return events;
 }
 
-function failureMessage(events: SseEvent[]): string | undefined {
+function failureMessage(events: SseEvent[]): CodexTaskError | undefined {
   const event = events.find((item) => item.type === "response.failed" || item.type === "error");
   if (!event) return undefined;
   const response = event["response"] as Record<string, unknown> | undefined;
   const error =
     (event["error"] as Record<string, unknown> | undefined) ??
     (response?.["error"] as Record<string, unknown> | undefined);
-  return typeof error?.["message"] === "string" ? error["message"] : "Direct response failed";
+  const message = typeof error?.["message"] === "string" ? error["message"] : "Direct response failed";
+  return selectionRejection({ message,
+    ...(typeof error?.["code"] === "string" ? { code: error["code"] } : {}),
+    ...(typeof error?.["param"] === "string" ? { param: error["param"] } : {}),
+  }) ?? new CodexTaskError("DIRECT_RESPONSE_FAILED", message, { retryable: false });
 }
 
 function extractUsage(events: SseEvent[]): UsageSummary | undefined {
@@ -94,7 +99,7 @@ function extractImage(events: SseEvent[]): { image?: Buffer | undefined; imageSi
 export function parseDirectResponse(text: string): ParsedDirectResponse {
   const events = parseSse(text);
   const failure = failureMessage(events);
-  if (failure) throw new CodexTaskError("DIRECT_RESPONSE_FAILED", failure, { retryable: false });
+  if (failure) throw failure;
   return {
     text: extractText(events),
     ...extractImage(events),

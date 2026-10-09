@@ -68,7 +68,8 @@ export function runDoctor(codexHome = defaultCodexHome()): DoctorReport {
         source: model.source,
         reasoning: model.reasoning,
         imageModel: imageModel.model.model,
-        imageFallbackFrom: imageModel.replacedLiteModel,
+        imageRoutingStrategy: "passthrough",
+        imageTransport: "classic Responses",
       },
     });
   } catch (error) {

@@ -85,7 +85,9 @@ codex-task skill path
 - 支持 classic Responses 与 Responses Lite encoder。
 - 模型顺序：显式参数 → Codex config → Codex model cache → compatibility fallback。
 - 文本可使用 `gpt-5.6-sol` 与 medium/high reasoning。
-- 私有 Responses Lite 路由不暴露 hosted `image_generation`，Direct 图片在请求前选择 compatible classic `gpt-5.5`。
+- Direct 图片使用 classic Responses 托管 `image_generation` 格式，保留选定主模型与 reasoning，不按 Lite 标记替换成其他模型。
+- 可选 `imageModel` 透传为绘图工具的 `model`；省略则由上游选择。SDK 显式传入时报错。
+- 上游兼容性由实际请求校验；公共 API 声明不等于 Codex OAuth 路由实测结果。
 - 请求发出后不得静默换模型重放，避免重复计费或副作用。
 - Direct 不读取工作区、不执行 shell、不调用本地 MCP 或 worker skills。
 

@@ -71,6 +71,7 @@ function turnMetadata(turn: TurnContext): string {
 function imageTool(options: ValidatedImageOptions): Record<string, unknown> {
   return {
     type: "image_generation",
+    ...(options.imageModel !== undefined ? { model: options.imageModel } : {}),
     ...(options.size !== "auto" ? { size: options.size } : {}),
     ...(options.quality !== "auto" ? { quality: options.quality } : {}),
     ...(options.background !== "auto" ? { background: options.background } : {}),
@@ -110,6 +111,7 @@ export function buildDirectRequest(
   spec: DirectRequestSpec,
 ): { headers: Record<string, string>; body: Record<string, unknown> } {
   const turn = turnContext(context);
+  const useResponsesLite = spec.kind === "text" && spec.model.useResponsesLite;
   const instructions = [spec.kind === "image" ? IMAGE_INSTRUCTIONS : TEXT_INSTRUCTIONS, spec.instructions]
     .filter(Boolean)
     .join("\n\n");
@@ -123,14 +125,14 @@ export function buildDirectRequest(
     store: false,
     reasoning: {
       effort: spec.model.reasoning,
-      ...(spec.model.useResponsesLite ? { context: "all_turns" } : {}),
+      ...(useResponsesLite ? { context: "all_turns" } : {}),
     },
     text: textConfig(spec),
     include: ["reasoning.encrypted_content"],
     prompt_cache_key: context.threadId,
     client_metadata: { "x-codex-installation-id": context.identity.installationId },
   };
-  const body = spec.model.useResponsesLite
+  const body = useResponsesLite
     ? {
         ...base,
         instructions: "",
@@ -164,7 +166,7 @@ export function buildDirectRequest(
       "thread-id": turn.threadId,
       "x-client-request-id": turn.turnId,
       "x-codex-turn-metadata": turnMetadata(turn),
-      ...(spec.model.useResponsesLite ? { "x-openai-internal-codex-responses-lite": "true" } : {}),
+      ...(useResponsesLite ? { "x-openai-internal-codex-responses-lite": "true" } : {}),
     },
     body,
   };

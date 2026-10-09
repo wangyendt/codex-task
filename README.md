@@ -37,7 +37,7 @@ codex-task doctor
 codex-task image "生成一份写实、干净的健身营养餐：香煎鸡胸肉、糙米、西兰花、牛油果；四种食物分区摆放，俯拍，完整餐盘，食材边界清晰；浅灰桌面，柔和自然光；不要文字、水印、餐具和其他食物。" -o ./docs/assets/fitness-meal.png --size 1024x1024 --quality high
 ```
 
-这里用 `--output` 把图片保存到 README 资产目录。省略该参数时，图片默认保存在当前目录：
+这里用 `--output` 把图片保存到 README 资产目录。省略该参数时，图片默认保存在当前目录。以下是历史实测结果（当时主模型为 `gpt-5.5`，不代表当前默认值）：
 
 ```json
 {
@@ -336,7 +336,29 @@ stdout 默认只有一个 JSON 结果；`--stream` 时为 JSONL。诊断写 stde
 
 SDK 默认不覆写 model/reasoning，继续读取正常的 Codex 用户与项目配置。
 
-Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 兼容 fallback 的顺序选择模型，每次请求重新读取配置。文本和识图使用同一个模型。`gpt-6-astra` 的文本/识图遵循缓存中的 Responses Lite 配置，生图则使用已验证支持托管 `image_generation` 的 classic Responses 路径，主模型仍为 Astra。其他 Lite 模型（例如 `gpt-5.6-sol`）的生图继续回退到 classic `gpt-5.5`。这里的主模型负责调用生图工具，底层图像模型由工具服务选择。JSON 会写入实际使用的主模型 `effectiveModel` 和 `reasoningEffort`。
+Direct 按显式参数 → Codex `config.toml` → `models_cache.json` 首选模型 → 未指定模型时的默认值选择模型，每次请求重新读取配置。文本和识图保留原有 transport 选择。生图保留选定的主模型和思考等级，只使用 classic Responses 格式声明托管 `image_generation` 工具；不再因 Lite 元数据替换成 `gpt-5.5`，也不在上游拒绝后换模型重放。JSON 中的 `effectiveModel` / `reasoningEffort` 是发给上游的主模型与等级，不是底层绘图模型名称，也不是上游内部调度证明。
+
+`--model` / HTTP `model` 控制调用绘图工具的主模型；可选的 `--image-model` / HTTP `imageModel` 独立透传到 `tools[].model`，控制工具的绘图模型。省略 `imageModel` 时完全交由上游选择，不猜测具体版本。此字段仅用于 Direct；SDK 显式传入会报错而不是忽略。
+
+```bash
+codex-task image "一幅现代建筑插画" --model gpt-6.1-sol --reasoning high --image-model gpt-image-2.5-sunburst -o ./architecture.png
+```
+
+`POST /v1/image` 请求示例（字段可选，App 现有请求无需修改）：
+
+```json
+{
+  "backend": "direct",
+  "prompt": "一幅现代建筑插画",
+  "model": "gpt-6.1-sol",
+  "reasoning": "high",
+  "imageModel": "gpt-image-2.5-sunburst"
+}
+```
+
+OpenAI [图像生成文档](https://developers.openai.com/api/docs/guides/image-generation)区分这两层模型。当前 Direct 使用 Codex OAuth 的 `chatgpt.com/backend-api/codex/responses`，不是 API Key 的公共 `/v1/responses`。公共 API 支持某个模型或字段，不代表此 Codex 路由对当前账号也支持；实际能力由上游校验，错误保留在任务结果中。本次透传修改不代表所有组合已实际生图验证。
+
+生图目录只用于展示，不作为组合白名单；包括 `ultra` 在内的选择均原样交由上游判断。没有学习矩阵、永久禁用名单或自动主模型回退。上游明确拒绝时，异步任务的 `result.error.code` 分别为 `DIRECT_UNSUPPORTED_MODEL`、`DIRECT_UNSUPPORTED_REASONING`、`DIRECT_UNSUPPORTED_IMAGE_MODEL` 或 `DIRECT_UNSUPPORTED_IMAGE_COMBINATION`。鉴权、限流、网络和其它参数错误保持独立分类，不误报为组合不支持。用户可调整后手动提交，或日后再次尝试原组合。
 
 运行 `codex-task doctor` 可查看本机 Direct transport、OAuth、模型解析、Codex CLI/SDK 与真实数据路径，不会发送模型请求。
 

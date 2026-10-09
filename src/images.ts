@@ -17,6 +17,7 @@ const MAX_IMAGE_BYTES = 20 * 1024 * 1024;
 const MAX_TOTAL_IMAGE_BYTES = 50 * 1024 * 1024;
 
 export interface ValidatedImageOptions {
+  imageModel?: string | undefined;
   count: number;
   concurrency: number;
   size: string;
@@ -44,7 +45,18 @@ export function validateInputImages(paths: string[] | undefined): string[] {
   return imagePaths;
 }
 
+/** Validate syntax, not a hard-coded provider capability list. */
+export function validateImageModel(value: unknown, backend: ImageOptions["backend"]): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== "string" || !/^[a-zA-Z0-9][a-zA-Z0-9._:-]{0,127}$/.test(value)) {
+    throw usageError("INVALID_IMAGE_MODEL");
+  }
+  if (backend === "sdk") throw usageError("IMAGE_MODEL_REQUIRES_DIRECT");
+  return value;
+}
+
 export function validateImageOptions(options: ImageOptions): ValidatedImageOptions {
+  const imageModel = validateImageModel(options.imageModel, options.backend);
   const count = options.count ?? 1;
   const concurrency = options.concurrency ?? 1;
   const size = options.size ?? "auto";
@@ -66,6 +78,7 @@ export function validateImageOptions(options: ImageOptions): ValidatedImageOptio
   }
 
   return {
+    ...(imageModel !== undefined ? { imageModel } : {}),
     count,
     concurrency,
     size,

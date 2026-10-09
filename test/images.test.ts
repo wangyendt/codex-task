@@ -109,3 +109,12 @@ test("removing the count cap retains per-file and aggregate byte limits", () => 
     assert.throws(() => validateImageOptions({ prompt: "x", imagePaths: files }), /50 MiB/);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
+
+test("imageModel remains optional, validates syntax and rejects SDK instead of silently dropping it", () => {
+  assert.equal(validateImageOptions({}).imageModel, undefined);
+  assert.equal(validateImageOptions({ imageModel: "gpt-image-future" }).imageModel, "gpt-image-future");
+  for (const imageModel of ["", " image-model", "image model", "model\n", "a".repeat(129)]) {
+    assert.throws(() => validateImageOptions({ imageModel }), /INVALID_IMAGE_MODEL/);
+  }
+  assert.throws(() => validateImageOptions({ imageModel: "gpt-image-future", backend: "sdk" }), /IMAGE_MODEL_REQUIRES_DIRECT/);
+});

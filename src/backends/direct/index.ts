@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { ensureDirectAuth } from "./auth.js";
 import { loadOrCreateIdentity } from "./identity.js";
 import { resolveDirectImageModel, resolveDirectModel, type ResolvedDirectModel } from "./models.js";
+import { selectionRejection, upstreamError, type DirectSelection } from "./rejection.js";
 import { buildDirectRequest, RESPONSES_URL, type DirectRequestSpec } from "./protocol.js";
 import { ImpersonatedSession } from "./http.js";
 import { parseDirectResponse, type ParsedDirectResponse } from "./sse.js";
@@ -26,8 +27,13 @@ function emit(callback: ((event: TaskEvent) => void) | undefined, event: TaskEve
   callback?.(event);
 }
 
-export function mapDirectHttpError(status: number, body: string): CodexTaskError {
+export function mapDirectHttpError(status: number, body: string, selection?: DirectSelection): CodexTaskError {
   const detail = body.slice(0, 500);
+  if (status === 400 || status === 404 || status === 422) {
+    const error = upstreamError(body);
+    const rejected = error ? selectionRejection(error, selection) : undefined;
+    if (rejected) return rejected;
+  }
   if (status === 403 && /^\s*(?:<!doctype\s+html|<html)\b/i.test(body)) {
     return new CodexTaskError(
       "DIRECT_UPSTREAM_BLOCKED",
@@ -85,7 +91,7 @@ async function sendOnce(
     const request = buildDirectRequest(context, spec);
     const response = await session.post(RESPONSES_URL, request.headers, JSON.stringify(request.body));
     if (signal?.aborted) throw new DOMException("The operation was aborted", "AbortError");
-    if (response.status !== 200) throw mapDirectHttpError(response.status, response.text);
+    if (response.status !== 200) throw mapDirectHttpError(response.status, response.text, { model: spec.model.model, reasoning: spec.model.reasoning, imageModel: spec.imageOptions?.imageModel });
     const parsed = parseDirectResponse(response.text);
     if (!parsed.text && !parsed.image) {
       throw new CodexTaskError("DIRECT_EMPTY_RESPONSE", "Direct backend returned an empty response", {
@@ -183,13 +189,6 @@ export async function executeDirectImage(taskId: string, options: ImageOptions &
   });
   const resolution = resolveDirectImageModel(config.codexHome, config.directModel, config.directReasoning);
   const model = resolution.model;
-  if (resolution.replacedLiteModel) {
-    emit(options.onEvent, {
-      type: "progress",
-      taskId,
-      message: `${resolution.replacedLiteModel} uses Responses Lite, which cannot expose hosted image_generation; using ${model.model} before sending the request`,
-    });
-  }
   const context = await contextForRequest(config.codexHome, config.proxy);
   const artifacts: Artifact[] = [];
   const usage: UsageSummary = {};

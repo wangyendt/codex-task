@@ -201,7 +201,9 @@ See the [deployment and API guide](./docs/knowhow/20260811_远程服务部署与
 
 ## Models
 
-SDK mode inherits the normal Codex model and reasoning configuration unless overridden. Direct checks explicit options, Codex config, the model cache, then a compatibility fallback, rereading configuration for each request. Text and vision use the same model. For `gpt-6-astra`, text and vision follow the cached Responses Lite preference, while image generation uses the verified classic Responses path with hosted `image_generation`, keeping Astra as the main model. Other Lite models, such as `gpt-5.6-sol`, still fall back to classic `gpt-5.5` for image generation. The main model calls the image generation tool; the tool service selects the underlying image model. Results report the main model as `effectiveModel`.
+SDK mode inherits the normal Codex model and reasoning configuration unless overridden. Direct text and vision retain their existing transport selection. Direct images preserve the chosen main model and reasoning, including `ultra`, using classic Responses with hosted `image_generation`; there is no automatic substitution to `gpt-5.5`. Image compatibility is decided by the upstream endpoint, not a cached capability allowlist. Explicit selection rejections have `DIRECT_UNSUPPORTED_*` error codes; authentication, rate-limit, network and unrelated parameter errors remain distinct. Retrying manually always attempts the selected combination again.
+
+Optional `--image-model` / HTTP `imageModel` passes the image tool model independently of the main `--model`. Omit it to use the upstream default. This is Direct-only. Results' `effectiveModel` is the main model sent upstream, not the underlying drawing engine. Direct uses the Codex OAuth endpoint, not the public API-Key Responses endpoint; public API capabilities do not prove Codex-route availability.
 
 ## Development and releases
 

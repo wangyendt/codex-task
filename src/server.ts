@@ -7,6 +7,7 @@ import { createModelCatalogReader, type ModelCatalog } from "./model-catalog.js"
 import { dispatch } from "./api.js";
 import { asCodexTaskError } from "./errors.js";
 import { ensureDir } from "./fs-utils.js";
+import { validateImageModel } from "./images.js";
 import { appPaths } from "./paths.js";
 import { scopesForServiceToken, type ServiceTokenScope } from "./service-tokens.js";
 import type { CommonOptions, ReasoningEffort, TaskRequest, TaskResult } from "./types.js";
@@ -436,6 +437,7 @@ export async function startCodexTaskServer(
       try {
         body = await readJson(request, maxBodyBytes);
         if (rejectScopedSdk(response, principal, body)) return;
+        const imageModel = validateImageModel(body["imageModel"], body["backend"] === "sdk" ? "sdk" : "direct");
         const now = new Date().toISOString();
         const job: RemoteJob = {
           jobId: randomUUID(),
@@ -456,6 +458,7 @@ export async function startCodexTaskServer(
             imagePaths: uploaded.paths,
             backend: body["backend"] === "sdk" ? "sdk" : "direct",
             temporary: true,
+            ...(imageModel !== undefined ? { imageModel } : {}),
             ...(typeof body["workingDirectory"] === "string" ? { workingDirectory: body["workingDirectory"] } : {}),
             ...(typeof body["count"] === "number" ? { count: body["count"] } : {}),
             ...(typeof body["concurrency"] === "number" ? { concurrency: body["concurrency"] } : {}),

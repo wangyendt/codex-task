@@ -8,6 +8,7 @@ import {
   type DirectRequestContext,
   type DirectRequestSpec,
 } from "../src/backends/direct/protocol.js";
+import { validateImageOptions } from "../src/images.js";
 import type { ResolvedDirectModel } from "../src/backends/direct/models.js";
 
 const context: DirectRequestContext = {
@@ -92,4 +93,27 @@ test("Direct wire request preserves all twelve image inputs", () => {
     assert.deepEqual(images.map((item) => item["image_url"]), Array.from({ length: 12 }, (_, index) =>
       `data:image/png;base64,${Buffer.from(`frame-${index}`).toString("base64")}`));
   } finally { rmSync(root, { recursive: true, force: true }); }
+});
+
+test("image wire keeps main model/reasoning and uses classic hosted tools despite Lite metadata", () => {
+  const request = buildDirectRequest(context, {
+    kind: "image", prompt: "a blue circle", model: { ...model(true), reasoning: "max" },
+    imageOptions: validateImageOptions({ prompt: "a blue circle" }),
+  });
+  assert.equal(request.body["model"], "gpt-5.6-sol");
+  assert.deepEqual(request.body["reasoning"], { effort: "max" });
+  assert.equal(request.headers["x-openai-internal-codex-responses-lite"], undefined);
+  assert.deepEqual(request.body["tools"], [{ type: "image_generation" }]);
+  const input = request.body["input"] as Array<Record<string, unknown>>;
+  assert.equal(input.length, 1);
+  assert.equal(input[0]?.["role"], "user");
+});
+
+test("image tool model is independent and passed through without an enumerated capability list", () => {
+  const request = buildDirectRequest(context, {
+    kind: "image", prompt: "a blue circle", model: model(true),
+    imageOptions: validateImageOptions({ imageModel: "gpt-image-future-2026-10-09", size: "1024x1024", quality: "high" }),
+  });
+  assert.equal(request.body["model"], "gpt-5.6-sol");
+  assert.deepEqual(request.body["tools"], [{ type: "image_generation", model: "gpt-image-future-2026-10-09", size: "1024x1024", quality: "high" }]);
 });

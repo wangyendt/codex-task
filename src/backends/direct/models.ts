@@ -62,6 +62,7 @@ export function resolveDirectModel(
   codexHome: string,
   explicitModel: string | undefined,
   requestedReasoning: ReasoningEffort = "medium",
+  validateReasoning = true,
 ): ResolvedDirectModel {
   const models = readModelCache(codexHome);
   const configured = readConfiguredModel(codexHome);
@@ -91,7 +92,7 @@ export function resolveDirectModel(
     "medium",
     "high",
   ]) as ReasoningEffort[];
-  if (!supportedReasoning.includes(requestedReasoning)) {
+  if (validateReasoning && !supportedReasoning.includes(requestedReasoning)) {
     throw usageError(
       `reasoning ${requestedReasoning} is not supported by ${model}; choose ${supportedReasoning.join(", ")}`,
     );
@@ -109,16 +110,10 @@ export function resolveDirectImageModel(
   codexHome: string,
   explicitModel: string | undefined,
   requestedReasoning: ReasoningEffort = "medium",
-): { model: ResolvedDirectModel; replacedLiteModel?: string | undefined } {
-  const selected = resolveDirectModel(codexHome, explicitModel, requestedReasoning);
-  if (!selected.useResponsesLite) return { model: selected };
-  // Astra also accepts classic Responses with hosted image_generation, even
-  // when the Codex catalog prefers Responses Lite for normal text turns.
-  if (selected.model === "gpt-6-astra") {
-    return { model: { ...selected, useResponsesLite: false } };
-  }
-  return {
-    model: resolveDirectModel(codexHome, "gpt-5.5", requestedReasoning),
-    replacedLiteModel: selected.model,
-  };
+): { model: ResolvedDirectModel } {
+  const selected = resolveDirectModel(codexHome, explicitModel, requestedReasoning, false);
+  // Hosted image_generation uses classic Responses. Change only the wire format,
+  // never the caller's main model or reasoning. Catalogs are advisory for image
+  // requests: even unknown model/effort combinations are decided by upstream.
+  return { model: { ...selected, useResponsesLite: false } };
 }

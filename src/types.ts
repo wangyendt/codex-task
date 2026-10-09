@@ -101,6 +101,8 @@ export interface TextOptions extends CommonOptions {
 }
 
 export interface ImageOptions extends CommonOptions {
+  /** Optional Direct image_generation tool model, independent of the main model. */
+  imageModel?: string | undefined;
   prompt?: string | undefined;
   backend?: Backend | undefined;
   output?: string | undefined;

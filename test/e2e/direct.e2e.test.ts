@@ -19,7 +19,7 @@ test("Direct gpt-5.6-sol text smoke", { skip: !enabled }, async () => {
   assert.match(result.text ?? "", /codex-task-ok/i);
 });
 
-test("Direct image preflights Lite to classic image generation", { skip: !enabled }, async () => {
+test("Direct image preserves the selected main model with classic image generation", { skip: !enabled }, async () => {
   const output = mkdtempSync(join(tmpdir(), "codex-task-e2e-image-"));
   try {
     const result = await generateImage({
@@ -35,7 +35,8 @@ test("Direct image preflights Lite to classic image generation", { skip: !enable
     });
     assert.equal(result.status, "completed");
     assert.equal(result.artifacts.length, 1);
-    assert.equal(result.effectiveModel, "gpt-5.5");
+    assert.equal(result.effectiveModel, "gpt-5.6-sol");
+    assert.equal(result.reasoningEffort, "medium");
   } finally {
     rmSync(output, { recursive: true, force: true });
   }

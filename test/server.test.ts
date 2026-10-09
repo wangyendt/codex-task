@@ -6,6 +6,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { startCodexTaskServer } from "../src/server.js";
 import { appPaths } from "../src/paths.js";
+import type { TaskRequest } from "../src/types.js";
 
 const TOKEN = "test-service-token";
 
@@ -532,7 +533,9 @@ test("model catalog requires authentication and supports refresh without creatin
     assert.equal(refreshes.length, 0);
     for (const path of ["/v1/models", "/v1/models?refresh=true"]) {
       const res = await fetch(`${server.url}${path}`, { headers: authHeaders() });
-      assert.equal(res.status, 200); assert.deepEqual(await res.json(), catalog);
+      assert.equal(res.status, 200);
+      const body = await res.json() as Record<string, unknown>;
+      assert.deepEqual(body, catalog);
     }
     assert.deepEqual(refreshes, [false, true]);
   } finally { await server.close(); }
@@ -544,4 +547,43 @@ test("model catalog returns 503 when no metadata is available", async () => {
   });
   try { assert.equal((await fetch(`${server.url}/v1/models`, { headers: authHeaders() })).status, 503); }
   finally { await server.close(); }
+});
+
+test("image HTTP options preserve main model/reasoning and optional tool model independently", async () => {
+  const received: TaskRequest[] = [];
+  const server = await startCodexTaskServer({
+    host: "127.0.0.1", port: 0, token: TOKEN,
+    run: async request => {
+      received.push(request);
+      return { status: "completed", taskId: "11111111-1111-4111-8111-111111111111", backend: "direct", artifacts: [] };
+    },
+  });
+  const submit = (body: Record<string, unknown>): Promise<Response> => fetch(`${server.url}/v1/image`, {
+    method: "POST", headers: authHeaders(), body: JSON.stringify(body),
+  });
+  try {
+    const response = await submit({ prompt: "a circle", backend: "direct", model: "gpt-5.6-sol", reasoning: "ultra", imageModel: "gpt-image-future" });
+    assert.equal(response.status, 202);
+    assert.equal(received.length, 1);
+    const request = received[0]!;
+    assert.equal(request.kind, "image");
+    if (request.kind !== "image") throw new Error("expected image request");
+    assert.equal(request.options.model, "gpt-5.6-sol");
+    assert.equal(request.options.reasoning, "ultra");
+    assert.equal(request.options.imageModel, "gpt-image-future");
+    for (const imageModel of [null, 42, {}, "", "a b"]) {
+      const rejected = await submit({ prompt: "a circle", imageModel });
+      assert.equal(rejected.status, 400);
+      assert.equal((await rejected.json() as { error: { code: string } }).error.code, "INVALID_IMAGE_MODEL");
+    }
+    const sdk = await submit({ prompt: "a circle", backend: "sdk", imageModel: "gpt-image-future" });
+    assert.equal(sdk.status, 400);
+    assert.equal((await sdk.json() as { error: { code: string } }).error.code, "IMAGE_MODEL_REQUIRES_DIRECT");
+    assert.equal(received.length, 1);
+    const automatic = await submit({ prompt: "a circle", model: "gpt-6.1-sol", reasoning: "low" });
+    assert.equal(automatic.status, 202);
+    const automaticRequest = received[1]!;
+    if (automaticRequest.kind !== "image") throw new Error("expected image request");
+    assert.equal(automaticRequest.options.imageModel, undefined);
+  } finally { await server.close(); }
 });

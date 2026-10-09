@@ -231,6 +231,7 @@ addCommonOptions(program.command("image [prompt]").description("generate or edit
   .option("--temp", "store output under the managed temporary directory")
   .option("-n, --count <count>", "number of images", "1")
   .option("--concurrency <count>", "parallel image requests", "1")
+  .option("--image-model <model>", "Direct image_generation tool model, independent of --model")
   .option("--size <size>", "auto or WIDTHxHEIGHT", "auto")
   .addOption(new Option("--quality <quality>").choices(["auto", "low", "medium", "high"]).default("auto"))
   .addOption(
@@ -248,6 +249,7 @@ addCommonOptions(program.command("image [prompt]").description("generate or edit
       temporary: (flags["temp"] as boolean | undefined) ?? false,
       count: integer(flags["count"] as string, "count"),
       concurrency: integer(flags["concurrency"] as string, "concurrency"),
+      imageModel: flags["imageModel"] as string | undefined,
       size: flags["size"] as string,
       quality: flags["quality"] as ImageOptions["quality"],
       background: flags["background"] as ImageOptions["background"],

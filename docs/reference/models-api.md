@@ -23,7 +23,7 @@ Authorization: Bearer TOKEN
 | `models[].defaultReasoning` | 模型声明的默认等级；无等级时为 null，并非修改服务的默认配置 |
 | `models[].inputModalities` | 声明的输入类型，例如 text/image；不是生图能力标记 |
 
-客户端传 `model` 和 `reasoning` 到任务提交接口。模型列表不代表逐个推理实测或 Direct 生图兼容性；图片任务仍可能按现有规则改用兼容模型，应查看 `effectiveModel`。SDK 后端当前仅接受 low/medium/high/xhigh，与本目录的 Direct 选项不同。
+客户端传 `model` 和 `reasoning` 到任务提交接口。模型列表不代表逐个推理实测或 Direct 生图兼容性；图片任务保留所选主模型和等级，不主动替换为兼容模型；`effectiveModel` 表示发给上游的主模型，不是底层绘图模型。SDK 后端当前仅接受 low/medium/high/xhigh，与本目录的 Direct 选项不同。
 
 缓存未出现的模型仍可能可用，因此保留手动模型 ID 输入。未收录模型的 Direct 默认校验范围仍为 low/medium/high。空等级列表不要虚构档位，应省略 reasoning。
 
@@ -55,3 +55,9 @@ systemctl --user restart codex-task.service
 ```
 
 Codex Desktop App、独立 Codex CLI、CodexTask、CodexTask 内置的 `@openai/codex-sdk` 是不同的软件包。更新独立 CLI 负责此模型目录；不会自动更新 SDK 依赖或其自带二进制。
+
+## Direct 生图透传
+
+目录用于展示可选项，不是生图能力白名单。Direct 生图原样保留选择的模型和等级（包括 ultra），不会按目录缺失或旧缓存拒绝组合，也不会替换为 gpt-5.5。上游实际拒绝的模型/等级/工具组合在异步任务结果中返回 DIRECT_UNSUPPORTED_MODEL、DIRECT_UNSUPPORTED_REASONING、DIRECT_UNSUPPORTED_IMAGE_MODEL 或 DIRECT_UNSUPPORTED_IMAGE_COMBINATION；限流、鉴权、网络及其它参数错误独立分类。错误不会建立永久禁用名单，下次用户提交照常尝试。
+
+GET /v1/models 不再返回旧的 imageRouting 预检矩阵；客户端不需要它。可选的 imageModel 仍独立透传给绘图工具，省略则由上游选择，具体实际绘图版本未知。

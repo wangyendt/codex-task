@@ -103,3 +103,9 @@ test("text, image, and resume share composable file and image inputs", () => {
     }
   }
 });
+
+test("image CLI exposes the tool model independently of the main model", () => {
+  const output = execFileSync(process.execPath, ["--import", "tsx", "src/cli.ts", "image", "--help"], { encoding: "utf8" });
+  assert.match(output, /--image-model <model>/);
+  assert.match(output, /independent of\s+--model/);
+});
